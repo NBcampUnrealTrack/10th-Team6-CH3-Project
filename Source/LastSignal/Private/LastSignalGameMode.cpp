@@ -12,3 +12,9 @@ void ALastSignalGameMode::BeginPlay()
 	if (GEngine)
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("GameMode BeginPlay"));
 }
+
+void ALastSignalGameMode::OnGoalReached()
+{
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, TEXT("CLEAR!"));
+}

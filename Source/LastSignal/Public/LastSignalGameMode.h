@@ -13,6 +13,7 @@ class LASTSIGNAL_API ALastSignalGameMode : public AGameModeBase
 
 public:
 	ALastSignalGameMode();
+	void OnGoalReached();
 
 protected:
 
