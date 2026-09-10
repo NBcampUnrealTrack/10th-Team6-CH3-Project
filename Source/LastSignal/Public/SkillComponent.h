@@ -7,9 +7,9 @@
 UENUM(BlueprintType)
 enum class ESkillState : uint8
 {
-	Charging,
-	Ready,
-	Active
+    Charging,
+    Ready,
+    Active
 };
 
 // UI 연동용
@@ -19,51 +19,49 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillStateChangedDelegate, ESkill
 UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LASTSIGNAL_API USkillComponent : public UActorComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USkillComponent();
+    USkillComponent();
 
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// 좀비 처치 시 외부에서 호출 (킬 카운트 누적 학인용)
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	virtual void OnZombieKilled();
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    virtual void OnZombieKilled(); //킬 카운트 임의로 적어둠
 
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	virtual bool CanActivateSkill() const;
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    virtual bool CanActivateSkill() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	virtual void ActivateSkill();
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    virtual void ActivateSkill();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	virtual void DeactivateSkill();
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    virtual void DeactivateSkill();
 
-	// UI 연동시 사용할 코드
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnSkillValueChangedDelegate OnSkillValueChanged; //게이지 변경 확인(현재값과 최대값)
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnSkillValueChangedDelegate OnSkillValueChanged; // UI 게이지 변경 확인 (현재값, 최대값)
 
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnSkillStateChangedDelegate OnSkillStateChanged; // 스킬 상태 변경 이벤트 (Charging, Ready, Active)
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnSkillStateChangedDelegate OnSkillStateChanged; // UI 스킬 상태 변경 확인 (Charging, Ready, Active)
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float CurrentSkillValue;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    float CurrentSkillValue;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float MaxSkillValue;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    float MaxSkillValue;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float ChargeRatePerSecond;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    float ChargeRatePerSecond;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float KillBonusValue;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    float KillBonusValue;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-	float SkillDuration;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    float SkillDuration;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Skill")
-	ESkillState CurrentState;
+    UPROPERTY(BlueprintReadOnly, Category = "Skill")
+    ESkillState CurrentState;
 
-	FTimerHandle SkillDurationTimerHandle;
+    FTimerHandle SkillDurationTimerHandle;
 };

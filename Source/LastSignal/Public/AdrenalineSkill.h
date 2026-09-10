@@ -9,24 +9,24 @@ class UNiagaraComponent;
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UAdrenalineSkill();
+    UAdrenalineSkill();
 
-	virtual void ActivateSkill() override;
-	virtual void DeactivateSkill() override;
+    virtual void ActivateSkill() override;
+    virtual void DeactivateSkill() override;
 
 protected:
-	UPROPERTY()
-	UNiagaraComponent* ActiveNiagaraEffect;
+    UPROPERTY()
+    UNiagaraComponent* ActiveNiagaraEffect;
 
-	float OriginalVerticalRecoil;
-	float OriginalHorizonRecoil;
-	float OriginalRecoilCameraShake;
-	float OriginalWeight;
-	int32 OriginalRPM;
-	float OriginalAutoireSpread;
-	float OriginalReloadTime;
-	float OriginalTacReloadTime;
+    float OriginalVerticalRecoil;
+    float OriginalHorizonRecoil;
+    float OriginalRecoilCameraShake;
+    float OriginalWeight;
+    int32 OriginalRPM;
+    float OriginalAutoFireSpread;
+    float OriginalReloadTime;
+    float OriginalTacReloadTime;
 };
