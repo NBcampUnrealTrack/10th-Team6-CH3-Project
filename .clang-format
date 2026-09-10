@@ -1,0 +1,7 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+BreakBeforeBraces: Allman
+ColumnLimit: 0
+PointerAlignment: Right
+SpaceBeforeParens: ControlStatements
+MaxEmptyLinesToKeep: 1
