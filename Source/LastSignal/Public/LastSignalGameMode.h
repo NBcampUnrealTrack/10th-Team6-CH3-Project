@@ -13,7 +13,7 @@ class LASTSIGNAL_API ALastSignalGameMode : public AGameModeBase
 
 public:
 	ALastSignalGameMode();
-	void OnGoalReached();
+	void OnGoalReached(FName NextLevel);  // 트리거 다음맵 때문에 추가
 
 protected:
 
