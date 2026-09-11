@@ -39,6 +39,7 @@ void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
 void AZombieAICharacter::BeginPlay()
 {
     Super::BeginPlay();
+    SetMovementSpeed(100);
 }
 
 void AZombieAICharacter::Tick(float DeltaTime)
