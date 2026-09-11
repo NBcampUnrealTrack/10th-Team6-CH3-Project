@@ -1,13 +1,71 @@
 #include "ZombieAIController.h"
 #include "NavigationSystem.h"
 #include "TimerManager.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Perception/AIPerceptionTypes.h"
+#include "Perception/AISenseConfig_Sight.h"
+#include "DrawDebugHelpers.h"
 
 AZombieAIController::AZombieAIController()
 {
+    AIPerception = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerception"));
+    SetPerceptionComponent(*AIPerception);
+
+    SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
+    SightConfig->SightRadius = 1500.0f; //AI가 새로운 대상을 시각으로 감지할수있는 최대거리
+    SightConfig->LoseSightRadius = 2000.0f; 
+    SightConfig->PeripheralVisionAngleDegrees = 90.0f;
+    SightConfig->SetMaxAge(5.0f);
+
+    SightConfig->DetectionByAffiliation.bDetectEnemies =true;
+    SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
+    SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+
+    AIPerception->ConfigureSense(*SightConfig);
+    AIPerception->SetDominantSense(SightConfig->GetSenseImplementation());
 }
+
+void AZombieAIController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+{
+    if (Stimulus.WasSuccessfullySensed())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Saw Player %s"), *Actor->GetName());
+
+        DrawDebugString(
+            GetWorld(),
+            Actor->GetActorLocation() + FVector(0, 0, 100),
+            FString::Printf(TEXT("Saw: %s"), *Actor->GetName()),
+            nullptr,
+            FColor::Red,
+            2.0f,
+            true);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Missed Player %s"), *Actor->GetName());
+
+        DrawDebugString(
+            GetWorld(),
+            Actor->GetActorLocation() + FVector(0, 0, 100),
+            FString::Printf(TEXT("Missed: %s"), *Actor->GetName()),
+            nullptr,
+            FColor::Green,
+            2.0f,
+            true);
+    }
+}
+
 void AZombieAIController::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (AIPerception)
+    {
+        AIPerception->OnTargetPerceptionUpdated.AddDynamic(
+            this,
+            &AZombieAIController :: OnPerceptionUpdated
+        );
+    }
 
     // TimerManager에서 타이머를 등록하여 일정시간 뒤 또는 반복적으로 함수 호출
     GetWorldTimerManager().SetTimer(RandomMoveTimer, //
