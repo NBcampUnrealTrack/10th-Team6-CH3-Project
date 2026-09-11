@@ -6,7 +6,8 @@
 AGoalTrigger::AGoalTrigger()
 {
  	PrimaryActorTick.bCanEverTick = false;
-	TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
+
+	TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox")); // 트리커 크기 임시 설정입니다.
 	SetRootComponent(TriggerBox);
 	TriggerBox->SetBoxExtent(FVector(100.f, 100.f, 100.f));
 	TriggerBox->SetCollisionProfileName(TEXT("Trigger"));
@@ -28,9 +29,9 @@ void AGoalTrigger::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor
 	if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0))
 		return;
 
-	ALastSignalGameMode* GM = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
+	ALastSignalGameMode* GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
 
-	if (GM)
-		GM->OnGoalReached();
+	if (GameMode)
+            GameMode->OnGoalReached(NextLevelName);
 }
 
