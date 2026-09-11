@@ -29,9 +29,9 @@ void AGoalTrigger::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor
 	if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0))
 		return;
 
-	ALastSignalGameMode* GM = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
+	ALastSignalGameMode* GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
 
-	if (GM)
-            GM->OnGoalReached(NextLevelName);
+	if (GameMode)
+            GameMode->OnGoalReached(NextLevelName);
 }
 
