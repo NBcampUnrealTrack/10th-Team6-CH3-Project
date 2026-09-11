@@ -24,8 +24,8 @@ void ALastSignalGameMode::OnGoalReached(FName NextLevel) // 클리어 트리거
 
 void ALastSignalGameMode::OnZombieKilled() // 좀비 킬 카운트 추가 구현
 {
-        if (ALastSignalGameState* GameState = GetGameState<ALastSignalGameState>())
+        if (ALastSignalGameState* CurrentGameState = GetGameState<ALastSignalGameState>())
 	{
-        GameState->AddKillCount();
+        CurrentGameState->AddKillCount();
 	}
 }
