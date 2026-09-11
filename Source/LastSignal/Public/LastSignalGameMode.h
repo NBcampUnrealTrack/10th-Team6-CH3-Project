@@ -14,6 +14,7 @@ class LASTSIGNAL_API ALastSignalGameMode : public AGameModeBase
 public:
 	ALastSignalGameMode();
 	void OnGoalReached(FName NextLevel);  // 트리거 다음맵 때문에 추가
+    void OnZombieKilled(); // 좀비카운트 킬 호출 받는거
 
 protected:
 
