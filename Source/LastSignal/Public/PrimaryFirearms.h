@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "PrimaryFirearms.generated.h"
 #include "PrimaryWeapon.h"
+#include "PrimaryFirearms.generated.h"
 
 // M4A1: 자동 사격, 일반탄, 탄창 교체.
 UCLASS()
