@@ -28,19 +28,7 @@ void AZombieAIController::BeginPlay()
 {
     Super::BeginPlay();
 
-    APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(),0);
-
-    GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("BeginPlay"));
-
    StartBehaviorTree();
-
-    UBlackboardComponent *BlackboardComp = GetBlackboardComponent();
-
-    if (BlackboardComp)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("BlackboardComp"));
-        BlackboardComp->SetValueAsVector(TEXT("PlayerVector"), PlayerPawn->GetActorLocation());
-    }
 
 }
 
