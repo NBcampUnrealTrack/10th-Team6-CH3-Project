@@ -5,9 +5,11 @@
 #include "InputActionValue.h"
 #include "PlayerCharacter.generated.h"
 
-class UCameraComponent;
+class UCameraComponent;            // 전방선언 부분입니다.
 class UInputMappingContext;
 class UInputAction;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDiedDelegate);  // 캐릭터가 죽을때 다른 클래스로 알려주는 이벤트 타입 만드는 부분 (델리게이트 기반)
 
 UCLASS()
 class LASTSIGNAL_API APlayerCharacter : public ACharacter
@@ -21,6 +23,14 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
+
+    virtual float TakeDamage(float DamageAmount, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) override; // 데미지 받는 함수 ( 캐릭터가 데미지 받으면 자동 호출해요)
+    
+    
+    UPROPERTY(BlueprintAssignable, Category = "Health|Events") // 캐릭터 죽을 때 이벤트 방송 로직
+    FOnDiedDelegate OnDied;
+
+
 
 protected:
 	
@@ -40,9 +50,18 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> JumpAction;
-
+    
     void Move(const FInputActionValue &Value);   // Look이랑 Move 이쪽입니다.
     void Look(const FInputActionValue &Value);
 
 
+    // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health") // 최대체력
+    float MaxHealth = 100.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Health") // 현재 체력
+    float CurrentHealth = 100.0f;
+
+    void Die();  // 체력 0되면 호출처리하는 함수
 };

@@ -6,6 +6,7 @@
 #include "InputMappingContext.h"
 #include "InputAction.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/EngineTypes.h"
 
 
 APlayerCharacter::APlayerCharacter()
@@ -82,4 +83,34 @@ void APlayerCharacter::Look(const FInputActionValue &Value) // Look 함수
         AddControllerYawInput(LookInput.X);
         AddControllerPitchInput(LookInput.Y);
     }
+}
+
+float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) // 데미지 받을떄 자동 호출 함수 구현
+{
+    const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser); // 부모(ACharacter)가 데미지 계산을 먼저 해주고, 실제 적용된 데미지량을 돌려줌 -> 기본 로직에 데미지량이 바뀔 수 있어서 최종 데미지를 부모가 계산하고 그 값을 우리가 이용함
+
+    if (ActualDamage <= 0.0f || CurrentHealth <= 0.0f) // 데미지가 0이거나, 이미 죽어있으면 더 처리할 필요 없음
+    {
+        return ActualDamage;
+    }
+
+    CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth); // 체력 깎기. Clamp로 0~MaxHealth 범위를 벗어나지 않게 고정
+
+    if (CurrentHealth <= 0.0f) // 체력 0 이하가 되면 죽음 처리
+    {
+        Die();
+    }
+
+    return ActualDamage;
+}
+
+void APlayerCharacter::Die() // 죽음 처리 (지금은 테스트 위해서 최소한만 구현했어요 — 나중에 애니메이션/입력 차단 같은거 만들 예정)
+{
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PLAYER DIED"));
+    }
+
+    
+    OnDied.Broadcast(); // 구독해둔 다른 클래스들(나중에 GameMode 등)에게 "죽었다"고 방송 (델리게이트라서 있는거에요)
 }
