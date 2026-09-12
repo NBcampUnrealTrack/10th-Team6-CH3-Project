@@ -8,7 +8,7 @@ UENUM(BlueprintType)
 enum class EZombieType : uint8
 {
     HumanZombie UMETA(DisplayName = "HumanZombie"),
-    MosterZombie UMETA(DisplayName = "MonsterZombie")
+    MonsterZombie UMETA(DisplayName = "MonsterZombie"),
 };
 
 UCLASS()
@@ -20,17 +20,17 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     AZombieAICharacter();
     void SetMovementSpeed(float NewSpeed);
 
-    UPROPERTY(EditAnywhere, Category = "AI")
+    UPROPERTY(Editanywhere, Category = "AI")
     float WalkSpeed = 300.0f;
 
-    UPROPERTY(EditAnywhere, Category = "AI")
+    UPROPERTY(Editanywhere, Category = "AI")
     float RunSpeed = 600.0f;
 
-    UPROPERTY(EditAnywhere)
+    UPROPERTY(Editanywhere)
     EZombieType ZombieType;
 
-    UPROPERTY(EditAnywhere)
-    TMap<EZombieType, USkeletalMesh *> ZombieMeshes;
+    UPROPERTY(Editanywhere)
+    TMap <EZombieType, USkeletalMesh*> ZombieMeshes;
 
   protected:
     virtual void BeginPlay() override;

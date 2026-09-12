@@ -1,10 +1,8 @@
 #include "ZombieAIController.h"
-#include "NavigationSystem.h"
 #include "TimerManager.h"
+#include "NavigationSystem.h"
 #include "Perception/AIPerceptionComponent.h"
-#include "Perception/AIPerceptionTypes.h"
 #include "Perception/AISenseConfig_Sight.h"
-#include "DrawDebugHelpers.h"
 
 AZombieAIController::AZombieAIController()
 {
@@ -12,12 +10,12 @@ AZombieAIController::AZombieAIController()
     SetPerceptionComponent(*AIPerception);
 
     SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-    SightConfig->SightRadius = 1500.0f; //AI가 새로운 대상을 시각으로 감지할수있는 최대거리
+    SightConfig->SightRadius = 1500.0f; //AI가 새로운 대상을 시각으로 감지할 수 있는 최대 거리
     SightConfig->LoseSightRadius = 2000.0f; 
-    SightConfig->PeripheralVisionAngleDegrees = 90.0f;
+    SightConfig->PeripheralVisionAngleDegrees = 90.0f; //AI의 좌우 시야각 범위
     SightConfig->SetMaxAge(5.0f);
 
-    SightConfig->DetectionByAffiliation.bDetectEnemies =true;
+    SightConfig->DetectionByAffiliation.bDetectEnemies = true;
     SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
     SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
 
@@ -25,31 +23,33 @@ AZombieAIController::AZombieAIController()
     AIPerception->SetDominantSense(SightConfig->GetSenseImplementation());
 }
 
-void AZombieAIController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+void AZombieAIController::OnPerceptionUpdated(AActor *Actor, FAIStimulus Stimulus)
 {
     if (Stimulus.WasSuccessfullySensed())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Saw Player %s"), *Actor->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Saw something! %s"), *Actor->GetName());
 
         DrawDebugString(
             GetWorld(),
             Actor->GetActorLocation() + FVector(0, 0, 100),
-            FString::Printf(TEXT("Saw: %s"), *Actor->GetName()),
+            FString ::Printf(TEXT("Saw: %s"), *Actor->GetName()),
             nullptr,
-            FColor::Red,
+            FColor ::Red,
             2.0f,
-            true);
+            true
+
+        );
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Missed Player %s"), *Actor->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Missed it! %s"), *Actor->GetName());
 
         DrawDebugString(
             GetWorld(),
             Actor->GetActorLocation() + FVector(0, 0, 100),
-            FString::Printf(TEXT("Missed: %s"), *Actor->GetName()),
+            FString ::Printf(TEXT("Missed: %s"), *Actor->GetName()),
             nullptr,
-            FColor::Green,
+            FColor ::Green,
             2.0f,
             true);
     }
@@ -64,39 +64,44 @@ void AZombieAIController::BeginPlay()
         AIPerception->OnTargetPerceptionUpdated.AddDynamic(
             this,
             &AZombieAIController :: OnPerceptionUpdated
-        );
-    }
 
-    // TimerManager에서 타이머를 등록하여 일정시간 뒤 또는 반복적으로 함수 호출
-    GetWorldTimerManager().SetTimer(RandomMoveTimer, //
-                                    this,
-                                    &AZombieAIController::MoveToRandomLocation,
-                                    3.0f,
-                                    true,
-                                    1.0f);
+        );
 }
 
-void AZombieAIController::OnPossess(APawn *InPawn)
+
+    GetWorldTimerManager().SetTimer(RandomMoveTimer, this,
+        &AZombieAIController::MoveToRandomLocation,
+        3.0f, true, 1.0f);
+
+}
+
+void AZombieAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
+
     if (InPawn)
     {
+
     }
 }
+
 
 void AZombieAIController::MoveToRandomLocation()
 {
-    APawn *MyPawn = GetPawn();
+    APawn* MyPawn = GetPawn();
 
     if (MyPawn)
     {
 
     }
-    // 현재 월드에서 사용중인 NavgationSystem을 가져온다
-    UNavigationSystemV1 *NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+    // 현재 월드에서 사용중이 네비시스템을 가져온다.
 
-    // Navigation Ststem이 반환하는 위치정보를 저장할 구조체 선언
+    UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+
+
+    // Navigation system이 반환하는 위치정보를 저장할 구조체를 선언
     FNavLocation RandomLocation;
+
     bool bFoundLocation = NavSystem->GetRandomReachablePointInRadius(
         MyPawn->GetActorLocation(),
         MoveRadius,
@@ -105,7 +110,7 @@ void AZombieAIController::MoveToRandomLocation()
 
     if (bFoundLocation)
     {
-        MoveToLocation(RandomLocation.Location);
-        // 월드의 특정 좌표를 목적지로 삼아 AI에게 이동명령
+            MoveToLocation(RandomLocation.Location); 
+            //월드의 특정좌표를 목적지로 삼아 AI에게 이동명령
     }
 }
