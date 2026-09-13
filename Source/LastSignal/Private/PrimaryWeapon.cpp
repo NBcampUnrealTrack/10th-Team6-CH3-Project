@@ -214,6 +214,11 @@ void APrimaryWeapon::HandleShot(
     bool bHit,
     const FHitResult &HitResult)
 {
+    UE_LOG(LogTemp, Log, TEXT("Shot fired. Hit=%s Actor=%s"),
+           bHit ? TEXT("true") : TEXT("false"),
+           *GetNameSafe(HitResult.GetActor())); // 테스트용: 맞았는지/뭘 맞았는지 바로 확인하려고 넣었어요 (꼭 확인 필요)
+    
+    
     PlayShotEffects(bHit, HitResult);
 }
 
