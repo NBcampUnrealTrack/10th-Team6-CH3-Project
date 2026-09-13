@@ -7,6 +7,8 @@
 #include "InputAction.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/EngineTypes.h"
+#include "PrimaryWeapon.h"
+#include "Engine/World.h"
 
 
 APlayerCharacter::APlayerCharacter()
@@ -35,6 +37,16 @@ void APlayerCharacter::BeginPlay()
                     ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
             {
                 Subsystem->AddMappingContext(DefaultMappingContext, 0);
+            }
+        }
+
+    if (WeaponClass) // 무기 클래스가 지정돼 있으면 스폰해서 바로 장착
+        {
+            EquippedWeapon = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass);
+
+            if (EquippedWeapon)
+            {
+                EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None); // 일단 팔 메시 없어서 소켓 없이 카메라 기준으로 바로 부착
             }
         }
 }

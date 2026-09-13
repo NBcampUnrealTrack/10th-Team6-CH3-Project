@@ -8,6 +8,7 @@
 class UCameraComponent;            // 전방선언 부분입니다.
 class UInputMappingContext;
 class UInputAction;
+class APrimaryWeapon;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDiedDelegate);  // 캐릭터가 죽을때 다른 클래스로 알려주는 이벤트 타입 만드는 부분 (델리게이트 기반)
 
@@ -64,4 +65,12 @@ protected:
     float CurrentHealth = 100.0f;
 
     void Die();  // 체력 0되면 호출처리하는 함수
+
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon") // 어떤 무기를 장착할지 (BP_PlayerCharacter Class Defaults에서 지정)
+    TSubclassOf<APrimaryWeapon> WeaponClass;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon") // 실제로 스폰돼서 장착된 무기 인스턴스
+    TObjectPtr<APrimaryWeapon> EquippedWeapon;
+
+
 };
