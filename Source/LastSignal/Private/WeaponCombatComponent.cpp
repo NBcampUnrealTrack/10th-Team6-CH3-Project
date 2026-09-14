@@ -61,6 +61,7 @@ void UWeaponCombatComponent::DeactivateWeapon()
 {
     bEquipped = false;
     bTriggerHeld = false;
+    CurrentSpreadHeat = 0.0f; // 누적 탄퍼짐 초기화
 
     if (UWorld *World = GetWorld())
     {
@@ -188,7 +189,11 @@ void UWeaponCombatComponent::TryFire()
     NextFireTime = World->GetTimeSeconds() + Interval;
 
     // 명중 방향 계산이 끝난 다음 반동을 추가한다.
+    // 탄퍼짐(Heat)을 누적 한다.
     AddRecoil();
+
+    const float MaxHeat = FMath::Max(0.0f, Stats.MaxSpreadAngle - Stats.BaseSpreadAngle);
+    CurrentSpreadHeat = FMath::Clamp(CurrentSpreadHeat + Stats.SpreadIncreasePerShot, 0.0f, MaxHeat);
 
     // 다음 발사를 먼저 예약한다.
     // 이후 이벤트에서 무기를 해제하거나 사격을 멈추면 취소된다.
@@ -240,9 +245,27 @@ bool UWeaponCombatComponent::FireSingleShot(
     FRotator ViewRotation;
     Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
 
-    const FVector End =
-        ViewLocation +
-        ViewRotation.Vector() * FMath::Max(1.0f, Stats.Range);
+    // 총구(Muzzle) 소켓을 먼저 조회 후 없을시 플레이어 위치를 기준으로 발사한다.
+    FVector TraceStart = ViewLocation;
+    if (USceneComponent *Visual = RecoilVisual.Get())
+    {
+        if (Visual->DoesSocketExist(TEXT("Muzzle")))
+        {
+            TraceStart = Visual->GetSocketLocation(TEXT("Muzzle"));
+        }
+    }
+
+    // 현재 탄퍼짐을 연산한다.
+    const float TotalSpread = FMath::Clamp(
+        Stats.BaseSpreadAngle + CurrentSpreadHeat,
+        0.0f,
+        Stats.MaxSpreadAngle);
+
+    const float HalfConeAngleRad = FMath::DegreesToRadians(TotalSpread * 0.5f);
+
+    // 조준선기준 탄퍼짐 계산 및 최종 위치 설정한다.
+    const FVector FireDirection = FMath::VRandCone(ViewRotation.Vector(), HalfConeAngleRad);
+    const FVector End = TraceStart + (FireDirection * FMath::Max(1.0f, Stats.Range));
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(GetOwner());
@@ -250,7 +273,7 @@ bool UWeaponCombatComponent::FireSingleShot(
 
     bOutHit = GetWorld()->LineTraceSingleByChannel(
         OutHit,
-        ViewLocation,
+        TraceStart,
         End,
         ECC_Visibility,
         Params);
@@ -402,6 +425,12 @@ void UWeaponCombatComponent::TickComponent(
     if (bEquipped)
     {
         UpdateRecoil(DeltaTime);
+
+        // 사격 중단 시 누적된 탄퍼짐이 줄어든다.
+        if (CurrentSpreadHeat > 0.0f)
+        {
+            CurrentSpreadHeat = FMath::FInterpTo(CurrentSpreadHeat, 0.0f, DeltaTime, Stats.SpreadRecoverySpeed);
+        }
     }
 }
 
@@ -479,6 +508,7 @@ void UWeaponCombatComponent::ResetRecoil()
         Pawn->AddControllerYawInput(-CameraCurrent.Y);
     }
 
+    CurrentSpreadHeat = 0.0f;
     CameraTarget = FVector2D::ZeroVector;
     CameraCurrent = FVector2D::ZeroVector;
 

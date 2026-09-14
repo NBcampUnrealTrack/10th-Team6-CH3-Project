@@ -105,6 +105,19 @@ struct FWeaponStats
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
               meta = (ClampMin = "0.01"))
     float VisualReturnSpeed = 12.0f;
+
+    // --- [탄퍼짐 스펙] ---
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
+    float BaseSpreadAngle = 0.3f; // 첫 총알 발사 탄퍼짐
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
+    float MaxSpreadAngle = 4.0f; // 최대 탄퍼짐
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
+    float SpreadIncreasePerShot = 0.35f; // 1발 사격당 증가하는 탄퍼짐
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
+    float SpreadRecoverySpeed = 8.0f; // 사격 중단 시 복구 속도
 };
 
 // 명중 여부와 결과를 발사 연출에 전달한다.
@@ -210,6 +223,8 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     bool bReloading = false;
 
     double NextFireTime = 0.0;
+
+    float CurrentSpreadHeat = 0.0f;
 
     // カメラ反동 목표값과 현재 적용된 반동값.
     FVector2D CameraTarget = FVector2D::ZeroVector;

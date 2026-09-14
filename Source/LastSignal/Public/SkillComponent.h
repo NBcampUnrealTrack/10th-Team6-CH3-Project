@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
@@ -12,7 +12,7 @@ enum class ESkillState : uint8
     Active
 };
 
-// UI ¿¬µ¿¿ë
+// UI ì—°ë™ìš©
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSkillValueChangedDelegate, float, CurrentValue, float, MaxValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillStateChangedDelegate, ESkillState, NewState);
 
@@ -24,26 +24,26 @@ class LASTSIGNAL_API USkillComponent : public UActorComponent
 public:
     USkillComponent();
 
-    // ÃÊ ¸¶´Ù ½ºÅ³°ÔÀÌÁö ÀÚµ¿À¸·Î ¿Ã¶ó°¡¸ç (Charging »óÅÂÀÏ¶§ µ¿ÀÛÇÑ´Ù)
+    // ì´ˆ ë§ˆë‹¤ ìŠ¤í‚¬ê²Œì´ì§€ ìë™ìœ¼ë¡œ ì˜¬ë¼ê°€ë©° (Charging ìƒíƒœì¼ë•Œ ë™ì‘í•œë‹¤)
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    virtual void OnZombieKilled(); // Å³ Ä«¿îÆ®°¡ ¿Ã¶ó°¥¶§ È£ÃâÇÑ´Ù (Charging »óÅÂÀÏ¶§ µ¿ÀÛÇÑ´Ù)
+    virtual void OnZombieKilled(); // í‚¬ ì¹´ìš´íŠ¸ê°€ ì˜¬ë¼ê°ˆë•Œ í˜¸ì¶œí•œë‹¤ (Charging ìƒíƒœì¼ë•Œ ë™ì‘í•œë‹¤)
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    virtual bool CanActivateSkill() const; // ÇÃ·¹ÀÌ¾î°¡ ½ºÅ³ Å°¸¦ ´­·¶À» ‹š ¹ßµ¿Á¶°ÇÀÌ (Ready »óÅÂ) ¶ó¸é µ¿ÀÛÇÏ¸ç (Charging, Active »óÅÂ) ¶ó¸é µ¿ÀÛÇÏÁö ¾Ê´Â´Ù.
+    virtual bool CanActivateSkill() const; // í”Œë ˆì´ì–´ê°€ ìŠ¤í‚¬ í‚¤ë¥¼ ëˆŒë €ì„ ë–„ ë°œë™ì¡°ê±´ì´ (Ready ìƒíƒœ) ë¼ë©´ ë™ì‘í•˜ë©° (Charging, Active ìƒíƒœ) ë¼ë©´ ë™ì‘í•˜ì§€ ì•ŠëŠ”ë‹¤.
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    virtual void ActivateSkill(); // ½ºÅ³ ¹ßµ¿ Å° ÀÔ·Â ½Ã °ÔÀÌÁö¸¦ 0À¸·Î ÃÊ±âÈ­ÇÏ°í, »óÅÂ¸¦ Active·Î ÀüÈ¯ µÇ¸ç SkillDuration Å¸¹Ì¸Ó ÀÛµ¿
+    virtual void ActivateSkill(); // ìŠ¤í‚¬ ë°œë™ í‚¤ ì…ë ¥ ì‹œ ê²Œì´ì§€ë¥¼ 0ìœ¼ë¡œ ì´ˆê¸°í™”í•˜ê³ , ìƒíƒœë¥¼ Activeë¡œ ì „í™˜ ë˜ë©° SkillDuration íƒ€ë¯¸ë¨¸ ì‘ë™
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    virtual void DeactivateSkill(); // SkillDuration Å¸ÀÌ¸Ó ¸¸·á ½Ã ÀÚµ¿ È£ÃâµÇ´Âµ¥ ½ºÅ³À» Á¾·á ÇÃ·¹ÀÌ¾î »ç¸Á, ¹«±â ±³Ã¼, ÄÆ¾À Àç»ı µî ½ºÅ³À» µµÁß¿¡ °­Á¦ Ãë¼ÒÇÒ ¶§ »ç¿ëµÈ´Ù.
+    virtual void DeactivateSkill(); // SkillDuration íƒ€ì´ë¨¸ ë§Œë£Œ ì‹œ ìë™ í˜¸ì¶œë˜ëŠ”ë° ìŠ¤í‚¬ì„ ì¢…ë£Œ í”Œë ˆì´ì–´ ì‚¬ë§, ë¬´ê¸° êµì²´, ì»·ì”¬ ì¬ìƒ ë“± ìŠ¤í‚¬ì„ ë„ì¤‘ì— ê°•ì œ ì·¨ì†Œí•  ë•Œ ì‚¬ìš©ëœë‹¤.
 
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnSkillValueChangedDelegate OnSkillValueChanged; // UI °ÔÀÌÁö º¯°æ È®ÀÎ (ÇöÀç°ª, ÃÖ´ë°ª)
+    FOnSkillValueChangedDelegate OnSkillValueChanged; // UI ê²Œì´ì§€ ë³€ê²½ í™•ì¸ (í˜„ì¬ê°’, ìµœëŒ€ê°’)
 
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnSkillStateChangedDelegate OnSkillStateChanged; // UI ½ºÅ³ »óÅÂ º¯°æ È®ÀÎ (Charging, Ready, Active)
+    FOnSkillStateChangedDelegate OnSkillStateChanged; // UI ìŠ¤í‚¬ ìƒíƒœ ë³€ê²½ í™•ì¸ (Charging, Ready, Active)
 
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")

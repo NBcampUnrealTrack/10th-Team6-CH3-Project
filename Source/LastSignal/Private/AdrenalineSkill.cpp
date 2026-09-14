@@ -1,4 +1,4 @@
-#include "AdrenalineSkill.h"
+ï»¿#include "AdrenalineSkill.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -8,10 +8,10 @@
 
 UAdrenalineSkill::UAdrenalineSkill()
 {
-    MaxSkillValue = 100.0f;       // ÃÖ´ë ½ºÅ³ °ÔÀÌÁö 100
-    SkillDuration = 20.0f;       // Áö¼Ó ½Ã°£
-    ChargeRatePerSecond = 1.0f;  // ÃÊ´ç ÆÐ½Ãºê ÃæÀü·®
-    KillBonusValue = 5.0f;      // Å³Ä«¿îÆ® 1´ç ÃæÀü·®
+    MaxSkillValue = 100.0f;       // ìµœëŒ€ ìŠ¤í‚¬ ê²Œì´ì§€ 100
+    SkillDuration = 20.0f;       // ì§€ì† ì‹œê°„
+    ChargeRatePerSecond = 1.0f;  // ì´ˆë‹¹ íŒ¨ì‹œë¸Œ ì¶©ì „ëŸ‰
+    KillBonusValue = 5.0f;      // í‚¬ì¹´ìš´íŠ¸ 1ë‹¹ ì¶©ì „ëŸ‰
 
     ActiveNiagaraEffect = nullptr;
     AdrenalineVFX = nullptr;
@@ -27,26 +27,26 @@ void UAdrenalineSkill::ActivateSkill()
     if (!Character)
         return;
 
-    // 1. [ÃÖÃÊ 1È¸ ½ÇÇà] ¹ßµ¿ »ç¿îµå Àç»ý (¹«±â ±³Ã¼ ½Ã¿¡´Â ÀçÀç»ýµÇÁö ¾ÊÀ½)
+    // 1. [ìµœì´ˆ 1íšŒ ì‹¤í–‰] ë°œë™ ì‚¬ìš´ë“œ ìž¬ìƒ (ë¬´ê¸° êµì²´ ì‹œì—ëŠ” ìž¬ìž¬ìƒë˜ì§€ ì•ŠìŒ)
     if (ActivationSound)
     {
         UGameplayStatics::PlaySoundAtLocation(this, ActivationSound, Character->GetActorLocation());
     }
 
-    // 2. [ÃÖÃÊ 1È¸ ½ÇÇà] ³ªÀÌ¾Æ°¡¶ó ÀÌÆåÆ®¸¦ Ä³¸¯ÅÍ ¸Þ½Ã¿¡ ºÎÂø (½ºÅ³ Áö¼Ó½Ã°£ ³»³» À¯Áö)
+    // 2. [ìµœì´ˆ 1íšŒ ì‹¤í–‰] ë‚˜ì´ì•„ê°€ë¼ ì´íŽ™íŠ¸ë¥¼ ìºë¦­í„° ë©”ì‹œì— ë¶€ì°© (ìŠ¤í‚¬ ì§€ì†ì‹œê°„ ë‚´ë‚´ ìœ ì§€)
     if (AdrenalineVFX && !ActiveNiagaraEffect)
     {
         ActiveNiagaraEffect = UNiagaraFunctionLibrary::SpawnSystemAttached(
             AdrenalineVFX,
             Character->GetMesh(),
-            TEXT("hand_rSocket"), // ÀÌÆåÆ®¸¦ ºÙÀÏ Ä³¸¯ÅÍ ¼ÒÄÏ ÀÌ¸§
+            TEXT("hand_rSocket"), // ì´íŽ™íŠ¸ë¥¼ ë¶™ì¼ ìºë¦­í„° ì†Œì¼“ ì´ë¦„
             FVector::ZeroVector,
             FRotator::ZeroRotator,
             EAttachLocation::SnapToTarget,
             true);
     }
 
-    // 3. ÇöÀç µé°í ÀÖ´Â ¹«±â¿¡ ½ºÅÈ ¹öÇÁ Àû¿ë
+    // 3. í˜„ìž¬ ë“¤ê³  ìžˆëŠ” ë¬´ê¸°ì— ìŠ¤íƒ¯ ë²„í”„ ì ìš©
     if (Character->GetCurrentWeapon())
     {
         ApplyBuffToWeapon(Character->GetCurrentWeapon());
@@ -55,14 +55,14 @@ void UAdrenalineSkill::ActivateSkill()
 
 void UAdrenalineSkill::DeactivateSkill()
 {
-    // ½ºÅ³ Á¾·á ½Ã¿¡¸¸ ÀÌÆåÆ® Á¦°Å
+    // ìŠ¤í‚¬ ì¢…ë£Œ ì‹œì—ë§Œ ì´íŽ™íŠ¸ ì œê±°
     if (ActiveNiagaraEffect)
     {
         ActiveNiagaraEffect->DestroyComponent();
         ActiveNiagaraEffect = nullptr;
     }
 
-    // ¹é¾÷ÇÑ ¹«±â ½ºÅÈ ¿øº¹
+    // ë°±ì—…í•œ ë¬´ê¸° ìŠ¤íƒ¯ ì›ë³µ
     RestoreWeaponStats();
 
     Super::DeactivateSkill();
@@ -70,11 +70,11 @@ void UAdrenalineSkill::DeactivateSkill()
 
 void UAdrenalineSkill::OnWeaponSwapped(APrimaryWeapon *NewWeapon)
 {
-    // ½ºÅ³ÀÌ È°¼ºÈ­ »óÅÂ°¡ ¾Æ´Ï¸é µ¿ÀÛ ¾È ÇÔ
+    // ìŠ¤í‚¬ì´ í™œì„±í™” ìƒíƒœê°€ ì•„ë‹ˆë©´ ë™ìž‘ ì•ˆ í•¨
     if (CurrentState != ESkillState::Active)
         return;
 
-    // »ç¿îµå´Â Àç»ýÇÏÁö ¾Ê°í ½ºÅÈ Ã³¸®¸¸ ÁøÇà
+    // ì‚¬ìš´ë“œëŠ” ìž¬ìƒí•˜ì§€ ì•Šê³  ìŠ¤íƒ¯ ì²˜ë¦¬ë§Œ ì§„í–‰
     RestoreWeaponStats();
     ApplyBuffToWeapon(NewWeapon);
 }
@@ -90,14 +90,14 @@ void UAdrenalineSkill::ApplyBuffToWeapon(APrimaryWeapon *Weapon)
         OriginalWeaponStats = Combat->Stats;
         CurrentBuffedWeapon = Weapon;
 
-        Combat->Stats.PitchKick *= 0.5f; // ¼öÁ÷ ¹Ýµ¿ ¼³Á¤
-        Combat->Stats.YawKick *= 0.5f;   // ¼öÆò ¹Ýµ¿ ¼³Á¤
-        Combat->Stats.VisualKickScale *= 0.5f; // Ä«¸Þ¶ó/È­¸éÀÌ ´ú´ú Èçµé¸®´Â ½Ã°¢Àû ¹Ýµ¿ ¼³Á¤
-        Combat->Stats.RPM = 900.0f; // RPM 900 ¼³Á¤
-        Combat->Stats.ReloadTime = 1.5f; // ÀÏ¹Ý ÀçÀåÀü ¼Óµµ ¼³Á¤
-        // Combat->Stats.Weight *= 0.5f;               // [¹Ì°³¹ß] ¹«±â ¹«°Ô°¡ ³·À»¼ö·Ï Ä³¸¯ÅÍ ¼ÓµµÁõ°¡ ½Ã½ºÅÛ
-        // Combat->>Stats.AutoFireSpread *= 0.6f;      // [¹Ì°³¹ß] ¿¬»ç °¡ÁßÄ¡
-        // Combat->Stats.TacReloadTime = 1.0f;         // [¹Ì°³¹ß] Àü¼ú ÀçÀåÀü ½Ã°£
+        Combat->Stats.PitchKick *= 0.5f; // ìˆ˜ì§ ë°˜ë™ ì„¤ì •
+        Combat->Stats.YawKick *= 0.5f;   // ìˆ˜í‰ ë°˜ë™ ì„¤ì •
+        Combat->Stats.VisualKickScale *= 0.5f; // ì¹´ë©”ë¼/í™”ë©´ì´ ëœëœ í”ë“¤ë¦¬ëŠ” ì‹œê°ì  ë°˜ë™ ì„¤ì •
+        Combat->Stats.RPM = 900.0f; // RPM 900 ì„¤ì •
+        Combat->Stats.ReloadTime = 1.5f; // ì¼ë°˜ ìž¬ìž¥ì „ ì†ë„ ì„¤ì •
+        // Combat->Stats.Weight *= 0.5f;               // [ë¯¸ê°œë°œ] ë¬´ê¸° ë¬´ê²Œê°€ ë‚®ì„ìˆ˜ë¡ ìºë¦­í„° ì†ë„ì¦ê°€ ì‹œìŠ¤í…œ
+        // Combat->>Stats.AutoFireSpread *= 0.6f;      // [ë¯¸ê°œë°œ] ì—°ì‚¬ ê°€ì¤‘ì¹˜
+        // Combat->Stats.TacReloadTime = 1.0f;         // [ë¯¸ê°œë°œ] ì „ìˆ  ìž¬ìž¥ì „ ì‹œê°„
     }
 }
 

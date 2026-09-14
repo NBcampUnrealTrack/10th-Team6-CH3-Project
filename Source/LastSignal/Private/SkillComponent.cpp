@@ -1,4 +1,4 @@
-#include "SkillComponent.h"
+ï»¿#include "SkillComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -6,11 +6,11 @@ USkillComponent::USkillComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
 
-    CurrentSkillValue = 0.0f;     // Ã³À½ ½ºÅ³ °ÔÀÌÁö
-    MaxSkillValue = 100.0f;       // ÃÖ´ë ½ºÅ³ °ÔÀÌÁö
-    SkillDuration = 20.0f;       // Áö¼Ó ½Ã°£
-    ChargeRatePerSecond = 1.0f;  // ÃÊ´ç ÆÐ½Ãºê ÃæÀü·®
-    KillBonusValue = 5.0f;      // Å³Ä«¿îÆ® 1´ç ÃæÀü·®
+    CurrentSkillValue = 0.0f;     // ì²˜ìŒ ìŠ¤í‚¬ ê²Œì´ì§€
+    MaxSkillValue = 100.0f;       // ìµœëŒ€ ìŠ¤í‚¬ ê²Œì´ì§€
+    SkillDuration = 20.0f;       // ì§€ì† ì‹œê°„
+    ChargeRatePerSecond = 1.0f;  // ì´ˆë‹¹ íŒ¨ì‹œë¸Œ ì¶©ì „ëŸ‰
+    KillBonusValue = 5.0f;      // í‚¬ì¹´ìš´íŠ¸ 1ë‹¹ ì¶©ì „ëŸ‰
 
     CurrentState = ESkillState::Charging;
 }
@@ -19,14 +19,14 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // Active »óÅÂÀÌ°Å³ª Ready »óÅÂÀÏ ¶§´Â ÆÐ½Ãºê °ÔÀÌÁö ÃæÀüÀ» ÀÏ½Ã Á¤Áö
+    // Active ìƒíƒœì´ê±°ë‚˜ Ready ìƒíƒœì¼ ë•ŒëŠ” íŒ¨ì‹œë¸Œ ê²Œì´ì§€ ì¶©ì „ì„ ì¼ì‹œ ì •ì§€
 
     if (CurrentState == ESkillState::Active || CurrentState == ESkillState::Ready)
     {
         return;
     }
 
-    // Charging »óÅÂ½Ã ÃÊ ¸¶´Ù ÆÐ½Ãºê ÃæÀü ÁøÇà
+    // Charging ìƒíƒœì‹œ ì´ˆ ë§ˆë‹¤ íŒ¨ì‹œë¸Œ ì¶©ì „ ì§„í–‰
 
     if (CurrentState == ESkillState::Charging)
     {
@@ -45,7 +45,7 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 
 void USkillComponent::OnZombieKilled()
 {
-    // Á»ºñ »ç¸Á ÀÌº¥Æ® ¹ÙÀÎµù ÁöÁ¡ Charging »óÅÂÀÏ ¶§¸¸ °ÔÀÌÁö Á¡¼ö ÇÕ»ê
+    // ì¢€ë¹„ ì‚¬ë§ ì´ë²¤íŠ¸ ë°”ì¸ë”© ì§€ì  Charging ìƒíƒœì¼ ë•Œë§Œ ê²Œì´ì§€ ì ìˆ˜ í•©ì‚°
 
     if (CurrentState != ESkillState::Charging) return;
 
@@ -61,7 +61,7 @@ void USkillComponent::OnZombieKilled()
 
 bool USkillComponent::CanActivateSkill() const
 {
-    // ÇÃ·¹ÀÌ¾î ÀÔ·ÂÀ» ÅëÇØ¼­ ½ºÅ³ »ç¿ë Á¶°Ç °Ë»ç
+    // í”Œë ˆì´ì–´ ìž…ë ¥ì„ í†µí•´ì„œ ìŠ¤í‚¬ ì‚¬ìš© ì¡°ê±´ ê²€ì‚¬
 
     return CurrentState == ESkillState::Ready;
 }
@@ -70,7 +70,7 @@ void USkillComponent::ActivateSkill()
 {
     if (!CanActivateSkill()) return;
 
-    // ½ºÅ³ ¹ßµ¿ ½Ã °ÔÀÌÁö 0% °íÁ¤ ÇÏ°í Å¸ÀÌ¾î ½ÃÀÛÇÑ´Ù.
+    // ìŠ¤í‚¬ ë°œë™ ì‹œ ê²Œì´ì§€ 0% ê³ ì • í•˜ê³  íƒ€ì´ì–´ ì‹œìž‘í•œë‹¤.
 
     CurrentState = ESkillState::Active;
     CurrentSkillValue = 0.0f;
@@ -78,7 +78,7 @@ void USkillComponent::ActivateSkill()
     OnSkillStateChanged.Broadcast(CurrentState);
     OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
 
-    // SkillDuration ÃÊ ÈÄ DeactivateSkill ÀÚµ¿ È£ÃâÇÑ´Ù.
+    // SkillDuration ì´ˆ í›„ DeactivateSkill ìžë™ í˜¸ì¶œí•œë‹¤.
 
     if (UWorld* World = GetWorld())
     {
@@ -88,7 +88,7 @@ void USkillComponent::ActivateSkill()
 
 void USkillComponent::DeactivateSkill()
 {
-    // Áö¼Ó½Ã°£ Á¾·á ¶Ç´Â Ä³¸¯ÅÍ »ç¸ÁÇÒ½Ã ½ºÅ³ »óÅÂ ¸®¼Â
+    // ì§€ì†ì‹œê°„ ì¢…ë£Œ ë˜ëŠ” ìºë¦­í„° ì‚¬ë§í• ì‹œ ìŠ¤í‚¬ ìƒíƒœ ë¦¬ì…‹
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(SkillDurationTimerHandle);

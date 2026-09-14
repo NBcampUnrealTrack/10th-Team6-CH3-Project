@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "SkillComponent.h"
@@ -21,7 +21,7 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
     virtual void ActivateSkill() override;
     virtual void DeactivateSkill() override;
 
-    // ¹«±â ±³Ã¼ ½Ã Ä³¸¯ÅÍ Å¬·¡½º µî¿¡¼­ È£Ãâ
+    // ë¬´ê¸° êµì²´ ì‹œ ìºë¦­í„° í´ë˜ìŠ¤ ë“±ì—ì„œ í˜¸ì¶œ
     UFUNCTION(BlueprintCallable, Category = "Skill")
     void OnWeaponSwapped(APrimaryWeapon *NewWeapon);
 
@@ -35,10 +35,10 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
     UPROPERTY()
     UNiagaraComponent *ActiveNiagaraEffect;
 
-    // ÇöÀç Àû¿ë ÁßÀÎ ¹«±âÀÇ ¿øº» ½ºÅÈ ¹é¾÷
+    // í˜„ì¬ ì ìš© ì¤‘ì¸ ë¬´ê¸°ì˜ ì›ë³¸ ìŠ¤íƒ¯ ë°±ì—…
     FWeaponStats OriginalWeaponStats;
 
-    // ÇöÀç ¹öÇÁ°¡ Àû¿ëµÇ¾î ÀÖ´Â ¹«±â ÂüÁ¶
+    // í˜„ì¬ ë²„í”„ê°€ ì ìš©ë˜ì–´ ìˆëŠ” ë¬´ê¸° ì°¸ì¡°
     TWeakObjectPtr<APrimaryWeapon> CurrentBuffedWeapon;
 
   private:

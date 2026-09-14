@@ -28,6 +28,11 @@ AM4A1::AM4A1()
     S.VisualKickScale = 1.0f;
     S.VisualKickSpeed = 25.0f;
     S.VisualReturnSpeed = 12.0f;
+
+    S.BaseSpreadAngle = 0.4f;
+    S.MaxSpreadAngle = 3.5f;
+    S.SpreadIncreasePerShot = 0.3f;
+    S.SpreadRecoverySpeed = 9.0f;
 }
 
 ASR25::ASR25()
@@ -55,6 +60,11 @@ ASR25::ASR25()
     S.VisualKickScale = 1.5f;
     S.VisualKickSpeed = 25.0f;
     S.VisualReturnSpeed = 10.0f;
+
+    S.BaseSpreadAngle = 0.05f;
+    S.MaxSpreadAngle = 1.8f;
+    S.SpreadIncreasePerShot = 0.5f;
+    S.SpreadRecoverySpeed = 14.0f;
 }
 
 AMP153::AMP153()
@@ -87,4 +97,9 @@ AMP153::AMP153()
     S.VisualKickScale = 2.0f;
     S.VisualKickSpeed = 28.0f;
     S.VisualReturnSpeed = 9.0f;
+    
+    S.BaseSpreadAngle = 3.0f;
+    S.MaxSpreadAngle = 5.0f;
+    S.SpreadIncreasePerShot = 0.8f;
+    S.SpreadRecoverySpeed = 6.0f;
 }
