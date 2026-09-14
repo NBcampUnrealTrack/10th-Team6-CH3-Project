@@ -12,6 +12,8 @@ void ALastSignalGameMode::BeginPlay()
 	Super::BeginPlay();
 	if (GEngine)
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("GameMode BeginPlay"));
+
+    StartStopwatch(); //게임시작하고 스톱워치 시작
 }
 
 void ALastSignalGameMode::OnGoalReached(FName NextLevel) // 클리어 트리거
@@ -91,4 +93,6 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
         }
         break;
     }
+
+     UE_LOG(LogTemp, Log, TEXT("TimerValue: %.0f"), CurrentGameState->TimerValue); // 스톱워치 임시 확인 테스트 코드, 확인 끝나면 삭제
 }
