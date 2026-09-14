@@ -1,39 +1,100 @@
 #include "ZombieAICharacter.h"
-#include "ZombieAIController.h"
+#include "Animation/AnimInstance.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "ZombieAIController.h"
 
 AZombieAICharacter::AZombieAICharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
     AIControllerClass = AZombieAIController::StaticClass();
-    //캐릭터를 기본적으로 조종할AI컨트롤러 지정
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-    //레벨배치또는 스폰시 AI컨트롤러가 자동으로 이 캐릭터를 possess하도록 설정
 
     UCharacterMovementComponent *Movement = GetCharacterMovement();
-
     Movement->MaxWalkSpeed = WalkSpeed;
-    Movement->bOrientRotationToMovement = true; 
-    //캐릭터가 이동하는 방향을 바라보도록 회전설정
+    Movement->bOrientRotationToMovement = true;
     Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
-    //캐릭터가 이동방향으로 회전하는 속도 결정
 }
 
 void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
 {
-    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    if (UCharacterMovementComponent *Movement = GetCharacterMovement())
     {
         Movement->MaxWalkSpeed = NewSpeed;
         if (ZombieType == EZombieType::HumanZombie)
         {
             Movement->MaxWalkSpeed = WalkSpeed * 1;
         }
-
         else if (ZombieType == EZombieType::MonsterZombie)
         {
             Movement->MaxWalkSpeed = WalkSpeed * 2;
         }
     }
+}
+
+// -----------------------------------------------------------
+// [공격 로직 구현]
+// -----------------------------------------------------------
+void AZombieAICharacter::Attack()
+{
+    if (bIsAttacking)
+        return;
+
+    UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance();
+    if (AnimInstance && AttackMontage)
+    {
+        bIsAttacking = true;
+
+        // 몽타주 재생
+        AnimInstance->Montage_Play(AttackMontage);
+
+        // 몽타주가 종료될 때 상태 초기화를 위한 델리게이트 바인딩
+        FOnMontageEnded EndDelegate;
+        EndDelegate.BindUObject(this, &AZombieAICharacter::OnAttackMontageEnded);
+        AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
+    }
+}
+
+void AZombieAICharacter::OnAttackHitCheck()
+{
+    FHitResult HitResult;
+    FCollisionQueryParams Params(NAME_None, false, this);
+
+    // 캐릭터 전방으로 Sphere Trace 계산
+    FVector Start = GetActorLocation();
+    FVector End = Start + (GetActorForwardVector() * AttackRange);
+
+    bool bHit = GetWorld()->SweepSingleByChannel(
+        HitResult,
+        Start,
+        End,
+        FQuat::Identity,
+        ECC_Pawn, // Pawn 대상 감지
+        FCollisionShape::MakeSphere(AttackRadius),
+        Params);
+
+    // 에디터에서 판정 범위를 시각적으로 확인 (디버그 구체)
+#if WITH_EDITOR
+    FColor DrawColor = bHit ? FColor::Red : FColor::Green;
+    DrawDebugSphere(GetWorld(), End, AttackRadius, 12, DrawColor, false, 1.0f);
+#endif
+
+    if (bHit && HitResult.GetActor())
+    {
+        // 타겟에게 데미지 전달
+        UGameplayStatics::ApplyDamage(
+            HitResult.GetActor(),
+            AttackDamage,
+            GetController(),
+            this,
+            UDamageType::StaticClass());
+    }
+}
+
+void AZombieAICharacter::OnAttackMontageEnded(UAnimMontage *Montage, bool bInterrupted)
+{
+    bIsAttacking = false;
 }
 
 void AZombieAICharacter::BeginPlay()
