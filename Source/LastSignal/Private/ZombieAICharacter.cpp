@@ -1,4 +1,4 @@
-#include "ZombieAICharacter.h"
+#include "ZombieAICharacter.h" // 헤더 파일 최상단 포함
 #include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -12,9 +12,12 @@ AZombieAICharacter::AZombieAICharacter()
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
     UCharacterMovementComponent *Movement = GetCharacterMovement();
-    Movement->MaxWalkSpeed = WalkSpeed;
-    Movement->bOrientRotationToMovement = true;
-    Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+    if (Movement)
+    {
+        Movement->MaxWalkSpeed = WalkSpeed;
+        Movement->bOrientRotationToMovement = true;
+        Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+    }
 }
 
 void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
@@ -33,9 +36,6 @@ void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
     }
 }
 
-// -----------------------------------------------------------
-// [공격 로직 구현]
-// -----------------------------------------------------------
 void AZombieAICharacter::Attack()
 {
     if (bIsAttacking)
@@ -49,7 +49,7 @@ void AZombieAICharacter::Attack()
         // 몽타주 재생
         AnimInstance->Montage_Play(AttackMontage);
 
-        // 몽타주가 종료될 때 상태 초기화를 위한 델리게이트 바인딩
+        // 몽타주 종료 델리게이트 바인딩
         FOnMontageEnded EndDelegate;
         EndDelegate.BindUObject(this, &AZombieAICharacter::OnAttackMontageEnded);
         AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
@@ -61,7 +61,6 @@ void AZombieAICharacter::OnAttackHitCheck()
     FHitResult HitResult;
     FCollisionQueryParams Params(NAME_None, false, this);
 
-    // 캐릭터 전방으로 Sphere Trace 계산
     FVector Start = GetActorLocation();
     FVector End = Start + (GetActorForwardVector() * AttackRange);
 
@@ -70,11 +69,10 @@ void AZombieAICharacter::OnAttackHitCheck()
         Start,
         End,
         FQuat::Identity,
-        ECC_Pawn, // Pawn 대상 감지
+        ECC_Pawn,
         FCollisionShape::MakeSphere(AttackRadius),
         Params);
 
-    // 에디터에서 판정 범위를 시각적으로 확인 (디버그 구체)
 #if WITH_EDITOR
     FColor DrawColor = bHit ? FColor::Red : FColor::Green;
     DrawDebugSphere(GetWorld(), End, AttackRadius, 12, DrawColor, false, 1.0f);
@@ -82,13 +80,18 @@ void AZombieAICharacter::OnAttackHitCheck()
 
     if (bHit && HitResult.GetActor())
     {
-        // 타겟에게 데미지 전달
-        UGameplayStatics::ApplyDamage(
-            HitResult.GetActor(),
-            AttackDamage,
-            GetController(),
-            this,
-            UDamageType::StaticClass());
+        APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+        if (HitResult.GetActor() == PlayerPawn)
+        {
+            UGameplayStatics::ApplyDamage(
+                HitResult.GetActor(),
+                AttackDamage,
+                GetController(),
+                this,
+                UDamageType::StaticClass());
+
+            UE_LOG(LogTemp, Warning, TEXT("[Zombie] Hit Player! Damage: %f"), AttackDamage);
+        }
     }
 }
 
