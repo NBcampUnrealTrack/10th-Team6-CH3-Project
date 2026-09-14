@@ -40,7 +40,15 @@ void APlayerCharacter::BeginPlay()
             if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
                     ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
             {
-                Subsystem->AddMappingContext(DefaultMappingContext, 0);
+                if (DefaultMappingContext)
+                {
+                    Subsystem->AddMappingContext(DefaultMappingContext, 0);
+                    UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: DefaultMappingContext successfully added."));
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("PlayerCharacter: DefaultMappingContext is missing!"));
+                }
             }
         }
 
@@ -51,7 +59,12 @@ void APlayerCharacter::BeginPlay()
             if (EquippedWeapon)
             {
                 EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None); // 일단 팔 메시 없어서 소켓 없이 카메라 기준으로 바로 부착
+                UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Weapon [%s] successfully equipped."), *EquippedWeapon->GetName());
             }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
         }
 }
 	
@@ -184,6 +197,8 @@ float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &Damag
 
     CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth); // 체력 깎기. Clamp로 0~MaxHealth 범위를 벗어나지 않게 고정
 
+    UE_LOG(LogTemp, Log, TEXT("Player took %.0f damage, Health: %.0f/%.0f"), ActualDamage, CurrentHealth, MaxHealth); // 로그로 데미지량과 체력 상태 확인
+
     if (CurrentHealth <= 0.0f) // 체력 0 이하가 되면 죽음 처리
     {
         Die();
@@ -194,6 +209,9 @@ float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &Damag
 
 void APlayerCharacter::Die() // 죽음 처리 (지금은 테스트 위해서 최소한만 구현했어요 — 나중에 애니메이션/입력 차단 같은거 만들 예정)
 {
+
+    UE_LOG(LogTemp, Warning, TEXT("Player Character DIED! Broadcasting OnDied event.")); // 로그로 죽음 처리 확인
+
     if (GEngine)
     {
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PLAYER DIED"));
