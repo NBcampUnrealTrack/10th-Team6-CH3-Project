@@ -1,7 +1,10 @@
 #include "AdrenalineSkill.h"
 #include "NiagaraComponent.h"
-// #include "Character.h" 캐릭터.h 임의로 넣어둠
-// #include "GunBase.h" 총.h 임의로 넣어둠
+#include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "PlayerCharacter.h"
+#include "PrimaryWeapon.h"
+#include "WeaponCombatComponent.h"
 
 UAdrenalineSkill::UAdrenalineSkill()
 {
@@ -11,76 +14,102 @@ UAdrenalineSkill::UAdrenalineSkill()
     KillBonusValue = 5.0f;      // 킬카운트 1당 충전량
 
     ActiveNiagaraEffect = nullptr;
+    AdrenalineVFX = nullptr;
+    ActivationSound = nullptr;
 }
 
 void UAdrenalineSkill::ActivateSkill()
 {
     Super::ActivateSkill();
 
-    // 실제 캐릭터와 무기 포인터를 가져와 스탯 적용
-    /*
-    AActor* Owner = GetOwner();
-    ALastSignalCharacter* Character = Cast<ALastSignalCharacter>(Owner);
-    if (Character && Character->GetCurrentWeapon())
+    AActor *Owner = GetOwner();
+    APlayerCharacter *Character = Cast<APlayerCharacter>(Owner);
+    if (!Character)
+        return;
+
+    // 1. [최초 1회 실행] 발동 사운드 재생 (무기 교체 시에는 재재생되지 않음)
+    if (ActivationSound)
     {
-        AGunBase* Weapon = Character->GetCurrentWeapon();
-
-        // 기존 무기 스탯 저장
-        OriginalVerticalRecoil = Weapon->VerticalRecoil;
-        OriginalHorizonRecoil = Weapon->HorizonRecoil;
-        OriginalRecoilCameraShake = Weapon->RecoilCameraShake;
-        OriginalWeight = Weapon->Weight;
-        OriginalRPM = Weapon->RPM;
-        OriginalAutoFireSpread = Weapon->AutoFireSpread;
-        OriginalReloadTime = Weapon->ReloadTime;
-        OriginalTacReloadTime = Weapon->TacReloadTime;
-
-        // 아드레날린 스탯
-        Weapon->VerticalRecoil *= 0.5f;       // verticalRecoil (0.5배)
-        Weapon->HorizonRecoil *= 0.5f;        // horizonRecoil (0.5배)
-        Weapon->RecoilCameraShake *= 0.5f;    // RecoilCameraShake (0.5배)
-        Weapon->Weight *= 0.5f;               // weight (0.5배)
-        Weapon->RPM = 900;                    // rpm 900 고정
-        Weapon->AutoFireSpread *= 0.6f;       // AutofireSpread (0.6배)
-        Weapon->ReloadTime = 1.5f;            // reloadtime 1.5초 (배수 연산시 /= 1.5f)
-        Weapon->TacReloadTime = 1.0f;         // tacReloadtime 1.0초 (배수 연산시 /= 1.5f)
-
-        // 캐릭터 이동속도 재계산 로직을 호출
-        // Character->UpdateCharacterMovementSpeed();
+        UGameplayStatics::PlaySoundAtLocation(this, ActivationSound, Character->GetActorLocation());
     }
-    */
+
+    // 2. [최초 1회 실행] 나이아가라 이펙트를 캐릭터 메시에 부착 (스킬 지속시간 내내 유지)
+    if (AdrenalineVFX && !ActiveNiagaraEffect)
+    {
+        ActiveNiagaraEffect = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            AdrenalineVFX,
+            Character->GetMesh(),
+            TEXT("hand_rSocket"), // 이펙트를 붙일 캐릭터 소켓 이름
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::SnapToTarget,
+            true);
+    }
+
+    // 3. 현재 들고 있는 무기에 스탯 버프 적용
+    if (Character->GetCurrentWeapon())
+    {
+        ApplyBuffToWeapon(Character->GetCurrentWeapon());
+    }
 }
 
 void UAdrenalineSkill::DeactivateSkill()
 {
-    // 이펙트 제거
+    // 스킬 종료 시에만 이펙트 제거
     if (ActiveNiagaraEffect)
     {
         ActiveNiagaraEffect->DestroyComponent();
         ActiveNiagaraEffect = nullptr;
     }
 
-    // 백업한 기존 무기 스탯 북구
-    /*
-    AActor* Owner = GetOwner();
-    ALastSignalCharacter* Character = Cast<ALastSignalCharacter>(Owner);
-    if (Character && Character->GetCurrentWeapon())
-    {
-        AGunBase* Weapon = Character->GetCurrentWeapon();
-
-        Weapon->VerticalRecoil = OriginalVerticalRecoil;
-        Weapon->HorizonRecoil = OriginalHorizonRecoil;
-        Weapon->RecoilCameraShake = OriginalRecoilCameraShake;
-        Weapon->Weight = OriginalWeight;
-        Weapon->RPM = OriginalRPM;
-        Weapon->AutoFireSpread = OriginalAutoFireSpread;
-        Weapon->ReloadTime = OriginalReloadTime;
-        Weapon->TacReloadTime = OriginalTacReloadTime;
-
-        // 캐릭터 이동속도 재계산 로직을 호출
-        // Character->UpdateCharacterMovementSpeed();
-    }
-    */
+    // 백업한 무기 스탯 원복
+    RestoreWeaponStats();
 
     Super::DeactivateSkill();
+}
+
+void UAdrenalineSkill::OnWeaponSwapped(APrimaryWeapon *NewWeapon)
+{
+    // 스킬이 활성화 상태가 아니면 동작 안 함
+    if (CurrentState != ESkillState::Active)
+        return;
+
+    // 사운드는 재생하지 않고 스탯 처리만 진행
+    RestoreWeaponStats();
+    ApplyBuffToWeapon(NewWeapon);
+}
+
+void UAdrenalineSkill::ApplyBuffToWeapon(APrimaryWeapon *Weapon)
+{
+    if (!Weapon)
+        return;
+
+    UWeaponCombatComponent *Combat = Weapon->GetCombatComponent();
+    if (Combat)
+    {
+        OriginalWeaponStats = Combat->Stats;
+        CurrentBuffedWeapon = Weapon;
+
+        Combat->Stats.PitchKick *= 0.5f; // 수직 반동 설정
+        Combat->Stats.YawKick *= 0.5f;   // 수평 반동 설정
+        Combat->Stats.VisualKickScale *= 0.5f; // 카메라/화면이 덜덜 흔들리는 시각적 반동 설정
+        Combat->Stats.RPM = 900.0f; // RPM 900 설정
+        Combat->Stats.ReloadTime = 1.5f; // 일반 재장전 속도 설정
+        // Combat->Stats.Weight *= 0.5f;               // [미개발] 무기 무게가 낮을수록 캐릭터 속도증가 시스템
+        // Combat->>Stats.AutoFireSpread *= 0.6f;      // [미개발] 연사 가중치
+        // Combat->Stats.TacReloadTime = 1.0f;         // [미개발] 전술 재장전 시간
+    }
+}
+
+void UAdrenalineSkill::RestoreWeaponStats()
+{
+    if (CurrentBuffedWeapon.IsValid())
+    {
+        APrimaryWeapon *Weapon = CurrentBuffedWeapon.Get();
+        if (Weapon && Weapon->GetCombatComponent())
+        {
+            Weapon->GetCombatComponent()->Stats = OriginalWeaponStats;
+        }
+        CurrentBuffedWeapon.Reset();
+    }
 }

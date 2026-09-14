@@ -31,7 +31,8 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Health|Events") // 캐릭터 죽을 때 이벤트 방송 로직
     FOnDiedDelegate OnDied;
 
-
+    UFUNCTION(BlueprintCallable, Category = "Weapon") 
+    APrimaryWeapon *GetCurrentWeapon() const { return CurrentWeapon; }
 
 protected:
 	
@@ -72,5 +73,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon") // 실제로 스폰돼서 장착된 무기 인스턴스
     TObjectPtr<APrimaryWeapon> EquippedWeapon;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+    APrimaryWeapon *CurrentWeapon;
 
 };
