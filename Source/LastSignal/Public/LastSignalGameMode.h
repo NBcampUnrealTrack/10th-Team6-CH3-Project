@@ -17,6 +17,9 @@ public:
 	void OnGoalReached(FName NextLevel);  // 트리거 다음맵 때문에 추가
     void OnZombieKilled(); // 좀비카운트 킬 호출 받는거
 
+	void OnCountdownFailed(); // 카운트다운 0 = 게임오버(실패), 현재 레벨 재시작
+    void OnEscapeSuccess();   // 탈출 타이머 0 = 클리어(성공) — 엔딩 연출은 나중에 붙일 예정 (제 예상은 클리어 뜨고 바로 엔딩 연출 on)
+
 	FTimerHandle TimerHandle; // 타이머 취소,갱신할 때 쓰는 꼬리표
 
 	void StartStopwatch();                        // 게임 시작 시 호출 — 0부터 증가

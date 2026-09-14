@@ -81,7 +81,10 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
         CurrentGameState->TimerValue -= 1.f;
         if (CurrentGameState->TimerValue <= 0.f)
         {
-            CurrentGameState->TimerValue = 0.f; // 게임오버 처리 연결 필요
+            CurrentGameState->TimerValue = 0.f;
+
+            GetWorldTimerManager().ClearTimer(TimerHandle); // 0 이후에도 계속 호출되는거 방지
+            OnCountdownFailed();
         }
         break;
 
@@ -89,10 +92,25 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
         CurrentGameState->TimerValue -= 1.f;
         if (CurrentGameState->TimerValue <= 0.f)
         {
-            CurrentGameState->TimerValue = 0.f; // // 클리어 처리 연결 필요
+            CurrentGameState->TimerValue = 0.f;
+        
+            GetWorldTimerManager().ClearTimer(TimerHandle); // 0 이후에도 계속 호출되는 거 방지
+            OnEscapeSuccess();
         }
         break;
     }
+}
 
-     UE_LOG(LogTemp, Log, TEXT("TimerValue: %.0f"), CurrentGameState->TimerValue); // 스톱워치 임시 확인 테스트 코드, 확인 끝나면 삭제
+void ALastSignalGameMode::OnCountdownFailed() // 카운트다운 끝나면 게임 오버 함수 구현
+{
+    if (GEngine)
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("GAME OVER"));
+
+    UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this))); // 현재 레벨 재시작
+}
+
+void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
+{
+    if (GEngine)
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
 }
