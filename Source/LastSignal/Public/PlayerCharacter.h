@@ -5,10 +5,11 @@
 #include "InputActionValue.h"
 #include "PlayerCharacter.generated.h"
 
-class UCameraComponent;            // 전방선언 부분입니다.
+class UCameraComponent; // 전방선언 부분입니다.
 class UInputMappingContext;
 class UInputAction;
 class APrimaryWeapon;
+class USkillComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDiedDelegate);  // 캐릭터가 죽을때 다른 클래스로 알려주는 이벤트 타입 만드는 부분 (델리게이트 기반)
 
@@ -84,6 +85,14 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
     float CrouchSpeed = 250.0f;
+
+    // 스킬 입력 액션
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> SkillAction;
+
+    // 스킬 컴포넌트
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
+    TObjectPtr<USkillComponent> SkillComponent;
     
 
     void Move(const FInputActionValue &Value);   // Look이랑 Move 이쪽입니다.
@@ -93,7 +102,7 @@ protected:
     void StopSprint();
     void StartCrouch(); // crouch
     void StopCrouch(); 
-
+    void UseSkill();
 
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
 

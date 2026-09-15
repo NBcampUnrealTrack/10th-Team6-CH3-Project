@@ -307,8 +307,12 @@ bool UWeaponCombatComponent::FireShotgun(
 
 void UWeaponCombatComponent::StartReload()
 {
+    // 약실에 탄약이 남아있는 경우 전술 재장전상태으로 간주한다.
+    const bool bIsTactical = (CurrentAmmo > 0);
+    const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
+
     if (!bEquipped || bReloading ||
-        CurrentAmmo >= Stats.MagazineSize || ReserveAmmo <= 0)
+        CurrentAmmo >= MaxCapacity || ReserveAmmo <= 0)
     {
         return;
     }
@@ -316,11 +320,14 @@ void UWeaponCombatComponent::StartReload()
     StopFire();
     bReloading = true;
 
+    // 전술 재장전 여부에 따라 소요 시간 차등 적용한다.
+    const float SelectedReloadTime = bIsTactical ? Stats.TacReloadTime : Stats.ReloadTime;
+
     GetWorld()->GetTimerManager().SetTimer(
         ReloadTimer,
         this,
         &UWeaponCombatComponent::ReloadStep,
-        FMath::Max(0.01f, Stats.ReloadTime),
+        FMath::Max(0.01f, SelectedReloadTime),
         false);
 
     OnReloadChanged.Broadcast(true);
@@ -333,8 +340,11 @@ void UWeaponCombatComponent::ReloadStep()
         return;
     }
 
-    const int32 Needed =
-        FMath::Max(0, Stats.MagazineSize - CurrentAmmo);
+    // 전술 재장전일 경우 탄창 용량 + 약실 1발 장전
+    const bool bIsTactical = (CurrentAmmo > 0);
+    const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
+
+    const int32 Needed = FMath::Max(0, MaxCapacity - CurrentAmmo);
 
     int32 AmmoToLoad = FMath::Min(Needed, ReserveAmmo);
 
@@ -349,7 +359,7 @@ void UWeaponCombatComponent::ReloadStep()
 
     const bool bContinueReload =
         Stats.ReloadType == EWeaponReloadType::PerShell &&
-        CurrentAmmo < Stats.MagazineSize &&
+        CurrentAmmo < MaxCapacity &&
         ReserveAmmo > 0;
 
     if (bContinueReload)

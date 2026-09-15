@@ -73,6 +73,14 @@ struct FWeaponStats
               meta = (ClampMin = "0.01"))
     float ReloadTime = 2.5f;
 
+    // 약실에 총알이 남은 상태는 전술 재장전 시간
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload", meta = (ClampMin = "0.01"))
+    float TacReloadTime = 1.8f;
+
+    // 전술 재장전 시 약실 +1 적용
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload")
+    bool bEnableChamberRound = true;
+
     // 산탄 구현용 정보. 지금은 실제 발사에 사용하지 않는다.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Shotgun",
               meta = (ClampMin = "1"))
