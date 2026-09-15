@@ -49,21 +49,13 @@ void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
 
 void AZombieAICharacter::Attack()
 {
-    if (bIsAttacking)
-        return;
-
     UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance();
     if (AnimInstance && AttackMontage)
     {
-        bIsAttacking = true;
-
-        // 몽타주 재생
-        AnimInstance->Montage_Play(AttackMontage);
-
-        // 몽타주 종료 델리게이트 바인딩
-        FOnMontageEnded EndDelegate;
-        EndDelegate.BindUObject(this, &AZombieAICharacter::OnAttackMontageEnded);
-        AnimInstance->Montage_SetEndDelegate(EndDelegate, AttackMontage);
+        if (!AnimInstance->Montage_IsPlaying(AttackMontage))
+        {
+            AnimInstance->Montage_Play(AttackMontage);
+        }
     }
 }
 
