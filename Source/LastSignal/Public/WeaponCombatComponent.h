@@ -209,6 +209,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
   private:
     void TryFire();
+    void ApplyDamage(const FHitResult &HitResult);
     void ReloadStep();
     void EndReload();
 

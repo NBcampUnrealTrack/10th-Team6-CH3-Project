@@ -132,6 +132,26 @@ void UWeaponCombatComponent::StopFire()
     // 반동은 즉시 초기화하지 않고 Tick에서 자연스럽게 복귀시킨다.
 }
 
+void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
+{
+    AActor *HitActor = HitResult.GetActor();
+    if (!IsValid(HitActor))
+    {
+        return;
+    }
+
+    const FVector ShotDirection = (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal();
+
+    UGameplayStatics::ApplyPointDamage(
+        HitActor,
+        FMath::Max(0.0f, Stats.Damage),
+        ShotDirection,
+        HitResult,
+        Shooter.IsValid() ? Shooter->GetController() : nullptr,
+        GetOwner(),
+        UDamageType::StaticClass());
+}
+
 void UWeaponCombatComponent::TryFire()
 {
     UWorld *World = GetWorld();
@@ -142,8 +162,7 @@ void UWeaponCombatComponent::TryFire()
         return;
     }
 
-    const double RemainingTime =
-        NextFireTime - World->GetTimeSeconds();
+    const double RemainingTime = NextFireTime - World->GetTimeSeconds();
 
     if (RemainingTime > 0.0)
     {
@@ -176,29 +195,27 @@ void UWeaponCombatComponent::TryFire()
         break;
     }
 
-    // 미구현 공격이나 조준 정보를 얻지 못한 공격은 탄약을 소비하지 않는다.
+    // 조준 정보 획득 실패 및 미구현 공격 시 탄약 차감 방지 및 연사 중단
     if (!bAttackExecuted)
     {
         StopFire();
         return;
     }
 
+    // 정상 사격 실행 시에만 탄약 차감
     --CurrentAmmo;
 
     const float Interval = 60.0f / FMath::Max(1.0f, Stats.RPM);
     NextFireTime = World->GetTimeSeconds() + Interval;
 
-    // 명중 방향 계산이 끝난 다음 반동을 추가한다.
-    // 탄퍼짐(Heat)을 누적 한다.
+    // 명중 방향 계산이 끝난후 탄퍼짐(Heat) 누적
     AddRecoil();
 
     const float MaxHeat = FMath::Max(0.0f, Stats.MaxSpreadAngle - Stats.BaseSpreadAngle);
     CurrentSpreadHeat = FMath::Clamp(CurrentSpreadHeat + Stats.SpreadIncreasePerShot, 0.0f, MaxHeat);
 
-    // 다음 발사를 먼저 예약한다.
-    // 이후 이벤트에서 무기를 해제하거나 사격을 멈추면 취소된다.
-    if (Stats.FireMode == EWeaponFireMode::Automatic &&
-        CurrentAmmo > 0)
+    // 연사 시 다음 발사 예약
+    if (Stats.FireMode == EWeaponFireMode::Automatic && CurrentAmmo > 0)
     {
         World->GetTimerManager().SetTimer(
             FireTimer,
@@ -208,21 +225,10 @@ void UWeaponCombatComponent::TryFire()
             false);
     }
 
-    // 일반탄 데미지는 탄약과 발사 시간을 확정한 뒤 전달한다.
-    if (Stats.AttackType == EWeaponAttackType::Single &&
-        bHit && IsValid(Hit.GetActor()))
+    // ApplyDamage 함수 호출
+    if (Stats.AttackType == EWeaponAttackType::Single && bHit)
     {
-        const FVector ShotDirection =
-            (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
-
-        UGameplayStatics::ApplyPointDamage(
-            Hit.GetActor(),
-            FMath::Max(0.0f, Stats.Damage),
-            ShotDirection,
-            Hit,
-            Shooter->GetController(),
-            GetOwner(),
-            UDamageType::StaticClass());
+        ApplyDamage(Hit);
     }
 
     NotifyAmmo();
