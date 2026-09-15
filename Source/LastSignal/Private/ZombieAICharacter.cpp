@@ -1,4 +1,4 @@
-#include "ZombieAICharacter.h" // 헤더 파일 최상단 포함
+#include "ZombieAICharacter.h"
 #include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -20,19 +20,30 @@ AZombieAICharacter::AZombieAICharacter()
     }
 }
 
+void AZombieAICharacter::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // 타입에 맞춰 이동 속도 초기화
+    SetMovementSpeed(WalkSpeed);
+}
+
 void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
 {
     if (UCharacterMovementComponent *Movement = GetCharacterMovement())
     {
-        Movement->MaxWalkSpeed = NewSpeed;
+        float TargetSpeed = NewSpeed;
+
         if (ZombieType == EZombieType::HumanZombie)
         {
-            Movement->MaxWalkSpeed = WalkSpeed * 1;
+            TargetSpeed = NewSpeed;
         }
         else if (ZombieType == EZombieType::MonsterZombie)
         {
-            Movement->MaxWalkSpeed = WalkSpeed * 2;
+            TargetSpeed = NewSpeed * 2.0f;
         }
+
+        Movement->MaxWalkSpeed = TargetSpeed;
     }
 }
 
@@ -80,30 +91,21 @@ void AZombieAICharacter::OnAttackHitCheck()
 
     if (bHit && HitResult.GetActor())
     {
-        APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
-        if (HitResult.GetActor() == PlayerPawn)
-        {
-            UGameplayStatics::ApplyDamage(
-                HitResult.GetActor(),
-                AttackDamage,
-                GetController(),
-                this,
-                UDamageType::StaticClass());
+        // 타격 대상에게 TakeDamage 전달
+        UGameplayStatics::ApplyDamage(
+            HitResult.GetActor(),
+            AttackDamage,
+            GetController(),
+            this,
+            UDamageType::StaticClass());
 
-            UE_LOG(LogTemp, Warning, TEXT("[Zombie] Hit Player! Damage: %f"), AttackDamage);
-        }
+        UE_LOG(LogTemp, Warning, TEXT("[Zombie] Hit Target: %s / Damage: %f"), *HitResult.GetActor()->GetName(), AttackDamage);
     }
 }
 
 void AZombieAICharacter::OnAttackMontageEnded(UAnimMontage *Montage, bool bInterrupted)
 {
     bIsAttacking = false;
-}
-
-void AZombieAICharacter::BeginPlay()
-{
-    Super::BeginPlay();
-    SetMovementSpeed(100);
 }
 
 void AZombieAICharacter::Tick(float DeltaTime)
