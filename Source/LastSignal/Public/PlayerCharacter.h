@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -41,8 +41,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Camera") //1인칭 카메라 시점
     TObjectPtr<UCameraComponent> FirstPersonCameraComponent;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Crouch")
+    float CrouchDownInterpSpeed = 200.0f; // 내려갈 때 속도
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Crouch")
+    float StandUpInterpSpeed = 240.0f; // 올라올 때 속도
+
+    float DefaultCameraRelativeZ = 60.0f; // 기본 카메라 상대 높이
+    float CameraCrouchOffsetZ = 0.0f;  
+
+    virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override; // 웅크리기 시작 
+    virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;   // 웅크리기 끝  
+    void UpdateCameraCrouchInterp(float DeltaTime);
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input") // 인풋 요소입니다
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+    // 캐릭터 행동관련
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> MoveAction;
@@ -52,9 +67,32 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> JumpAction;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> SprintAction;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> CrouchAction;
+
+    // 캐릭터 이동속도
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    float WalkSpeed = 600.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    float SprintSpeed = 900.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    float CrouchSpeed = 250.0f;
     
+
     void Move(const FInputActionValue &Value);   // Look이랑 Move 이쪽입니다.
     void Look(const FInputActionValue &Value);
+
+    void StartSprint(); // sprint
+    void StopSprint();
+    void StartCrouch(); // crouch
+    void StopCrouch(); 
 
 
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
