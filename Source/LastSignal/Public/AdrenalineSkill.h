@@ -25,11 +25,14 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
     void OnWeaponSwapped(APrimaryWeapon *NewWeapon);
 
  protected:
-   TObjectPtr<UNiagaraSystem> AdrenalineVFX;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    TObjectPtr<UNiagaraSystem> AdrenalineVFX;
 
-   TObjectPtr<USoundBase> ActivationSound;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    TObjectPtr<USoundBase> ActivationSound;
 
-   FName AttachSocketName = TEXT("hand_rSocket");
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    FName AttachSocketName = TEXT("hand_rSocket");
 
    UPROPERTY()
    TObjectPtr<UNiagaraComponent> ActiveNiagaraEffect;

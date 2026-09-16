@@ -1,5 +1,6 @@
 ﻿#include "WeaponCombatComponent.h"
 
+#include "ZombieAICharacter.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -140,16 +141,31 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
         return;
     }
 
-    const FVector ShotDirection = (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal();
+    // 1. 직접 맞은 액터나 그 액터의 Owner(주인)를 좀비 클래스로 캐스팅 시도
+    AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(HitActor);
+    if (!Zombie && HitActor->GetOwner())
+    {
+        Zombie = Cast<AZombieAICharacter>(HitActor->GetOwner());
+    }
 
-    UGameplayStatics::ApplyPointDamage(
-        HitActor,
-        FMath::Max(0.0f, Stats.Damage),
-        ShotDirection,
-        HitResult,
-        Shooter.IsValid() ? Shooter->GetController() : nullptr,
-        GetOwner(),
-        UDamageType::StaticClass());
+    if (Zombie)
+    {
+        AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
+
+        // 좀비를 정상 인식했을 때 데미지 전달
+        UGameplayStatics::ApplyDamage(
+            Zombie,
+            FMath::Max(0.0f, Stats.Damage),
+            InstigatorController,
+            GetOwner(),
+            UDamageType::StaticClass());
+
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Applied Damage."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Non-Zombie Actor: %s"), *HitActor->GetName());
+    }
 }
 
 void UWeaponCombatComponent::TryFire()
