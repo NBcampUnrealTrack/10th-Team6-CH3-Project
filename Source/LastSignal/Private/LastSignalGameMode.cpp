@@ -117,6 +117,9 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     if (!CurrentGameState)
         return;
 
+    if (GEngine) // 임시: TimerValue가 레벨 넘어가면서 이어지는지 확인용
+        GEngine->AddOnScreenDebugMessage(1, 1.1f, FColor::White, FString::Printf(TEXT("TimerValue: %.0f"), CurrentGameState->TimerValue));
+
     switch (CurrentGameState->TimerMode)
     {
     case ETimerMode::Stopwatch:
