@@ -14,11 +14,13 @@ EBTNodeResult::Type UBTTask_ZombieAttack::ExecuteTask(UBehaviorTreeComponent &Ow
         return EBTNodeResult::Failed;
 
     AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(AIController->GetPawn());
-    if (!Zombie)
-        return EBTNodeResult::Failed;
+    if (Zombie)
+    {
+        AIController->StopMovement();
+        Zombie->Attack();
 
-    // 좀비의 공격 함수 실행
-    Zombie->Attack();
+        return EBTNodeResult::Succeeded;
+    }
 
-    return EBTNodeResult::Succeeded;
+    return EBTNodeResult::Failed;
 }

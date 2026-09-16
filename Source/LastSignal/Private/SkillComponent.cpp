@@ -1,6 +1,37 @@
 ﻿#include "SkillComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+
+// 디버그 출력용
+void DisplaySkillStateDebug(ESkillState NewState)
+{
+    if (!GEngine)
+        return;
+
+    FString DebugMessage;
+    FColor MessageColor = FColor::White;
+
+    switch (NewState)
+    {
+    case ESkillState::Charging:
+        DebugMessage = TEXT("스킬 상태: 충전 중...");
+        MessageColor = FColor::Yellow;
+        break;
+
+    case ESkillState::Ready:
+        DebugMessage = TEXT("★ 스킬 준비 완료!★");
+        MessageColor = FColor::Green;
+        break;
+
+    case ESkillState::Active:
+        DebugMessage = TEXT("스킬 발동 중!");
+        MessageColor = FColor::Red;
+        break;
+    }
+
+    GEngine->AddOnScreenDebugMessage(1, 5.0f, MessageColor, DebugMessage);
+}
 
 USkillComponent::USkillComponent()
 {
@@ -39,6 +70,7 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
         {
             CurrentState = ESkillState::Ready;
             OnSkillStateChanged.Broadcast(CurrentState);
+            DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
         }
     }
 }
@@ -56,6 +88,7 @@ void USkillComponent::OnZombieKilled()
     {
         CurrentState = ESkillState::Ready;
         OnSkillStateChanged.Broadcast(CurrentState);
+        DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
     }
 }
 
@@ -68,19 +101,41 @@ bool USkillComponent::CanActivateSkill() const
 
 void USkillComponent::ActivateSkill()
 {
-    if (!CanActivateSkill()) return;
+    FString StateStr;
+    switch (CurrentState)
+    {
+    case ESkillState::Charging:
+        StateStr = TEXT("Charging(충전 중)");
+        break;
+    case ESkillState::Ready:
+        StateStr = TEXT("Ready(준비 완료)");
+        break;
+    case ESkillState::Active:
+        StateStr = TEXT("Active(발동 중)");
+        break;
+    }
 
-    // 스킬 발동 시 게이지 0% 고정 하고 타이어 시작한다.
+    // Output Log 출력
+    UE_LOG(LogTemp, Warning, TEXT("[SkillInput] 스킬 키 입력 받음! | 현재 상태: %s | 게이지: %.1f / %.1f"),
+           *StateStr, CurrentSkillValue, MaxSkillValue);
+
+    if (!CanActivateSkill())
+    {
+        FString FailReason = (CurrentState == ESkillState::Active) ? TEXT("이미 스킬이 활성화 상태입니다.") : TEXT("스킬 게이지가 모자랍니다.");
+        UE_LOG(LogTemp, Error, TEXT("[SkillInput] 스킬 발동 실패! -> 사유: %s"), *FailReason);
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[SkillInput] ★ 스킬 발동 성공! ★"));
 
     CurrentState = ESkillState::Active;
     CurrentSkillValue = 0.0f;
 
     OnSkillStateChanged.Broadcast(CurrentState);
+    DisplaySkillStateDebug(CurrentState);
     OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
 
-    // SkillDuration 초 후 DeactivateSkill 자동 호출한다.
-
-    if (UWorld* World = GetWorld())
+    if (UWorld *World = GetWorld())
     {
         World->GetTimerManager().SetTimer(SkillDurationTimerHandle, this, &USkillComponent::DeactivateSkill, SkillDuration, false);
     }
@@ -96,5 +151,6 @@ void USkillComponent::DeactivateSkill()
 
     CurrentState = ESkillState::Charging;
     OnSkillStateChanged.Broadcast(CurrentState);
+    DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
 }
 

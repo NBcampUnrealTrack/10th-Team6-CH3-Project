@@ -9,6 +9,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/EngineTypes.h"
 #include "PrimaryWeapon.h"
+#include "SkillComponent.h"
+#include "AdrenalineSkill.h"
 #include "Engine/World.h"
 
 
@@ -29,6 +31,8 @@ APlayerCharacter::APlayerCharacter()
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
     GetCharacterMovement()->MaxWalkSpeedCrouched = CrouchSpeed; // 웅크리기시 속도감소
 
+    // 스킬 컴포넌트 생성
+    SkillComponent = CreateDefaultSubobject<UAdrenalineSkill>(TEXT("SkillComponent"));
 }
 
 void APlayerCharacter::BeginPlay()
@@ -131,6 +135,11 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             EnhancedInput->BindAction(CrouchAction, ETriggerEvent::Canceled, this, &APlayerCharacter::StopCrouch);
         }
 
+        if (SkillAction) // 스킬 입력 바인딩
+        {
+            EnhancedInput->BindAction(SkillAction, ETriggerEvent::Started, this, &APlayerCharacter::UseSkill);
+        }
+
     }
 
 }
@@ -219,4 +228,19 @@ void APlayerCharacter::Die() // 죽음 처리 (지금은 테스트 위해서 최
 
     
     OnDied.Broadcast(); // 구독해둔 다른 클래스들(나중에 GameMode 등)에게 "죽었다"고 방송 (델리게이트라서 있는거에요)
+}
+
+// 스킬 실행 함수
+void APlayerCharacter::UseSkill()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerCharacter] UseSkill() 입력 호출됨"));
+
+    if (SkillComponent)
+    {
+        SkillComponent->ActivateSkill();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[PlayerCharacter] SkillComponent가 유효하지 않습니다(nullptr)!"));
+    }
 }

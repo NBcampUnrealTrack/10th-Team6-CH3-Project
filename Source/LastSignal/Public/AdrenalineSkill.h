@@ -15,25 +15,27 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
 {
     GENERATED_BODY()
 
-  public:
+ public:
     UAdrenalineSkill();
 
     virtual void ActivateSkill() override;
     virtual void DeactivateSkill() override;
 
-    // 무기 교체 시 캐릭터 클래스 등에서 호출
     UFUNCTION(BlueprintCallable, Category = "Skill")
     void OnWeaponSwapped(APrimaryWeapon *NewWeapon);
 
-  protected:
-    UPROPERTY(EditDefaultsOnly, Category = "Effects")
-    UNiagaraSystem *AdrenalineVFX;
+ protected:
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    TObjectPtr<UNiagaraSystem> AdrenalineVFX;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Effects")
-    USoundBase *ActivationSound;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    TObjectPtr<USoundBase> ActivationSound;
 
-    UPROPERTY()
-    UNiagaraComponent *ActiveNiagaraEffect;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    FName AttachSocketName = TEXT("hand_rSocket");
+
+   UPROPERTY()
+   TObjectPtr<UNiagaraComponent> ActiveNiagaraEffect;
 
     // 현재 적용 중인 무기의 원본 스탯 백업
     FWeaponStats OriginalWeaponStats;
@@ -41,7 +43,7 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
     // 현재 버프가 적용되어 있는 무기 참조
     TWeakObjectPtr<APrimaryWeapon> CurrentBuffedWeapon;
 
-  private:
+ private:
     void ApplyBuffToWeapon(APrimaryWeapon *Weapon);
     void RestoreWeaponStats();
 };

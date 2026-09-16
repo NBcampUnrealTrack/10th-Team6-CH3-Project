@@ -1,5 +1,6 @@
 ﻿#include "WeaponCombatComponent.h"
 
+#include "ZombieAICharacter.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -132,6 +133,41 @@ void UWeaponCombatComponent::StopFire()
     // 반동은 즉시 초기화하지 않고 Tick에서 자연스럽게 복귀시킨다.
 }
 
+void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
+{
+    AActor *HitActor = HitResult.GetActor();
+    if (!IsValid(HitActor))
+    {
+        return;
+    }
+
+    // 1. 직접 맞은 액터나 그 액터의 Owner(주인)를 좀비 클래스로 캐스팅 시도
+    AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(HitActor);
+    if (!Zombie && HitActor->GetOwner())
+    {
+        Zombie = Cast<AZombieAICharacter>(HitActor->GetOwner());
+    }
+
+    if (Zombie)
+    {
+        AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
+
+        // 좀비를 정상 인식했을 때 데미지 전달
+        UGameplayStatics::ApplyDamage(
+            Zombie,
+            FMath::Max(0.0f, Stats.Damage),
+            InstigatorController,
+            GetOwner(),
+            UDamageType::StaticClass());
+
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Applied Damage."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Non-Zombie Actor: %s"), *HitActor->GetName());
+    }
+}
+
 void UWeaponCombatComponent::TryFire()
 {
     UWorld *World = GetWorld();
@@ -142,8 +178,7 @@ void UWeaponCombatComponent::TryFire()
         return;
     }
 
-    const double RemainingTime =
-        NextFireTime - World->GetTimeSeconds();
+    const double RemainingTime = NextFireTime - World->GetTimeSeconds();
 
     if (RemainingTime > 0.0)
     {
@@ -176,29 +211,27 @@ void UWeaponCombatComponent::TryFire()
         break;
     }
 
-    // 미구현 공격이나 조준 정보를 얻지 못한 공격은 탄약을 소비하지 않는다.
+    // 조준 정보 획득 실패 및 미구현 공격 시 탄약 차감 방지 및 연사 중단
     if (!bAttackExecuted)
     {
         StopFire();
         return;
     }
 
+    // 정상 사격 실행 시에만 탄약 차감
     --CurrentAmmo;
 
     const float Interval = 60.0f / FMath::Max(1.0f, Stats.RPM);
     NextFireTime = World->GetTimeSeconds() + Interval;
 
-    // 명중 방향 계산이 끝난 다음 반동을 추가한다.
-    // 탄퍼짐(Heat)을 누적 한다.
+    // 명중 방향 계산이 끝난후 탄퍼짐(Heat) 누적
     AddRecoil();
 
     const float MaxHeat = FMath::Max(0.0f, Stats.MaxSpreadAngle - Stats.BaseSpreadAngle);
     CurrentSpreadHeat = FMath::Clamp(CurrentSpreadHeat + Stats.SpreadIncreasePerShot, 0.0f, MaxHeat);
 
-    // 다음 발사를 먼저 예약한다.
-    // 이후 이벤트에서 무기를 해제하거나 사격을 멈추면 취소된다.
-    if (Stats.FireMode == EWeaponFireMode::Automatic &&
-        CurrentAmmo > 0)
+    // 연사 시 다음 발사 예약
+    if (Stats.FireMode == EWeaponFireMode::Automatic && CurrentAmmo > 0)
     {
         World->GetTimerManager().SetTimer(
             FireTimer,
@@ -208,21 +241,10 @@ void UWeaponCombatComponent::TryFire()
             false);
     }
 
-    // 일반탄 데미지는 탄약과 발사 시간을 확정한 뒤 전달한다.
-    if (Stats.AttackType == EWeaponAttackType::Single &&
-        bHit && IsValid(Hit.GetActor()))
+    // ApplyDamage 함수 호출
+    if (Stats.AttackType == EWeaponAttackType::Single && bHit)
     {
-        const FVector ShotDirection =
-            (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
-
-        UGameplayStatics::ApplyPointDamage(
-            Hit.GetActor(),
-            FMath::Max(0.0f, Stats.Damage),
-            ShotDirection,
-            Hit,
-            Shooter->GetController(),
-            GetOwner(),
-            UDamageType::StaticClass());
+        ApplyDamage(Hit);
     }
 
     NotifyAmmo();
@@ -307,8 +329,12 @@ bool UWeaponCombatComponent::FireShotgun(
 
 void UWeaponCombatComponent::StartReload()
 {
+    // 약실에 탄약이 남아있는 경우 전술 재장전상태으로 간주한다.
+    const bool bIsTactical = (CurrentAmmo > 0);
+    const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
+
     if (!bEquipped || bReloading ||
-        CurrentAmmo >= Stats.MagazineSize || ReserveAmmo <= 0)
+        CurrentAmmo >= MaxCapacity || ReserveAmmo <= 0)
     {
         return;
     }
@@ -316,11 +342,14 @@ void UWeaponCombatComponent::StartReload()
     StopFire();
     bReloading = true;
 
+    // 전술 재장전 여부에 따라 소요 시간 차등 적용한다.
+    const float SelectedReloadTime = bIsTactical ? Stats.TacReloadTime : Stats.ReloadTime;
+
     GetWorld()->GetTimerManager().SetTimer(
         ReloadTimer,
         this,
         &UWeaponCombatComponent::ReloadStep,
-        FMath::Max(0.01f, Stats.ReloadTime),
+        FMath::Max(0.01f, SelectedReloadTime),
         false);
 
     OnReloadChanged.Broadcast(true);
@@ -333,8 +362,11 @@ void UWeaponCombatComponent::ReloadStep()
         return;
     }
 
-    const int32 Needed =
-        FMath::Max(0, Stats.MagazineSize - CurrentAmmo);
+    // 전술 재장전일 경우 탄창 용량 + 약실 1발 장전
+    const bool bIsTactical = (CurrentAmmo > 0);
+    const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
+
+    const int32 Needed = FMath::Max(0, MaxCapacity - CurrentAmmo);
 
     int32 AmmoToLoad = FMath::Min(Needed, ReserveAmmo);
 
@@ -349,7 +381,7 @@ void UWeaponCombatComponent::ReloadStep()
 
     const bool bContinueReload =
         Stats.ReloadType == EWeaponReloadType::PerShell &&
-        CurrentAmmo < Stats.MagazineSize &&
+        CurrentAmmo < MaxCapacity &&
         ReserveAmmo > 0;
 
     if (bContinueReload)

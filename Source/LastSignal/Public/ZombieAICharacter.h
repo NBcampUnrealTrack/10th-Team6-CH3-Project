@@ -35,6 +35,20 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     UFUNCTION(BlueprintCallable, Category = "Combat")
     bool GetIsAttacking() const { return bIsAttacking; }
 
+    // --- 체력 및 사망 관련 Getter ---
+    UFUNCTION(BlueprintCallable, Category = "Stat")
+    float GetMaxHP() const { return MaxHP; }
+
+    UFUNCTION(BlueprintCallable, Category = "Stat")
+    float GetCurrentHP() const { return CurrentHP; }
+
+    // AnimBP State Machine 트랜지션용 (0.0f ~ 1.0f)
+    UFUNCTION(BlueprintCallable, Category = "Stat")
+    float GetHPRatio() const { return (MaxHP > 0.0f) ? (CurrentHP / MaxHP) : 0.0f; }
+
+    UFUNCTION(BlueprintCallable, Category = "Stat")
+    bool GetIsDead() const { return bIsDead; }
+
     UPROPERTY(EditAnywhere, Category = "AI")
     float WalkSpeed = 300.0f;
 
@@ -50,7 +64,20 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
   protected:
     virtual void BeginPlay() override;
 
-    // 전투 설정 변수
+    // 언리얼 데미지 수신 오버라이드 함수
+    virtual float TakeDamage(float DamageAmount, struct FDamageEvent const &DamageEvent, class AController *EventInstigator, AActor *DamageCauser) override;
+
+    // --- 체력 및 스탯 변수 ---
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stat")
+    float MaxHP = 100.0f;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stat")
+    float CurrentHP = 100.0f;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stat")
+    bool bIsDead = false;
+
+    // --- 전투 설정 변수 ---
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     class UAnimMontage *AttackMontage;
 
