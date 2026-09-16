@@ -4,6 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "LastSignalGameMode.h"
+#include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
 
 AZombieAICharacter::AZombieAICharacter()
@@ -69,6 +71,9 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
     if (CurrentHP <= 0.0f)
     {
         bIsDead = true;
+
+        if (ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this)))
+            GameMode->OnZombieKilled(); // 킬카운트 증가 (게임모드로 보냄)
 
         UE_LOG(LogTemp, Error, TEXT("[Zombie] Dead!"));
 

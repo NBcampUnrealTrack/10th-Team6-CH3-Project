@@ -117,8 +117,16 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     if (!CurrentGameState)
         return;
 
-    if (GEngine) // 임시: TimerValue가 레벨 넘어가면서 이어지는지 확인용
-        GEngine->AddOnScreenDebugMessage(1, 1.1f, FColor::White, FString::Printf(TEXT("TimerValue: %.0f"), CurrentGameState->TimerValue));
+     if (GEngine) // 임시: TimerValue/KillCount/HP 확인용
+    {
+        float CurrentHP = 0.f;
+        if (APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
+            CurrentHP = CurrentPlayerCharacter->GetCurrentHealth();
+
+        GEngine->AddOnScreenDebugMessage(1, 1.1f, FColor::White,
+            FString::Printf(TEXT("Timer: %.0f | Kill: %d | HP: %.0f"),
+                CurrentGameState->TimerValue, CurrentGameState->KillCount, CurrentHP));
+    }
 
     switch (CurrentGameState->TimerMode)
     {
