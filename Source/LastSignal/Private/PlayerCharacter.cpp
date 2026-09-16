@@ -12,6 +12,7 @@
 #include "SkillComponent.h"
 #include "AdrenalineSkill.h"
 #include "Engine/World.h"
+#include "InteractableTarget.h"
 
 
 APlayerCharacter::APlayerCharacter()
@@ -140,9 +141,20 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             EnhancedInput->BindAction(SkillAction, ETriggerEvent::Started, this, &APlayerCharacter::UseSkill);
         }
 
-    }
+        if (InteractAction) // 상호작용 입력 바인딩
+        {
+            EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &APlayerCharacter::TryInteract);
+        }
 
+    }
 }
+
+void APlayerCharacter::TryInteract()
+{
+    if (NearbyInteractable && NearbyInteractable->Implements<UInteractableTarget>())
+        IInteractableTarget::Execute_Interact(NearbyInteractable, this);
+}
+
 void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 {
     const FVector2D MoveInput = Value.Get<FVector2D>();

@@ -38,6 +38,8 @@ public:
     float GetCurrentHealth() const { return CurrentHealth; } // GameMode가 세이브/로드 때 C++에서만 쓰는 접근자 (블루프린트 노출 필요해지면 그때 UFUNCTION 추가)
     void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
+    AActor *NearbyInteractable = nullptr; // 상호작용 가능한 근처 오브젝트 (IInteractableTarget 구현체), Radio 등이 오버랩으로 직접 세팅/해제
+
 protected:
 	
 	virtual void BeginPlay() override;
@@ -93,6 +95,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> SkillAction;
 
+    //인터랙션 입력 액션
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> InteractAction;
+
     // 스킬 컴포넌트
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     TObjectPtr<USkillComponent> SkillComponent;
@@ -106,6 +112,7 @@ protected:
     void StartCrouch(); // crouch
     void StopCrouch(); 
     void UseSkill();
+    void TryInteract();
 
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
 
