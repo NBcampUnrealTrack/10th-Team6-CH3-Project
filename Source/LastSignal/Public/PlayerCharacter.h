@@ -35,6 +35,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon") 
     APrimaryWeapon *GetCurrentWeapon() const { return CurrentWeapon; }
 
+    float GetCurrentHealth() const { return CurrentHealth; } // GameMode가 세이브/로드 때 C++에서만 쓰는 접근자 (블루프린트 노출 필요해지면 그때 UFUNCTION 추가)
+    void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
+
 protected:
 	
 	virtual void BeginPlay() override;
