@@ -65,6 +65,12 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
     UE_LOG(LogTemp, Warning, TEXT("[Zombie] Took Damage: %f / Remaining HP: %f (%.1f%%)"),
            ActualDamage, CurrentHP, GetHPRatio() * 100.0f);
 
+    //  [추가] 체력이 50% 이하이고, 아직 살아있는 경우 이동 속도를 절반으로 감속
+    if (GetHPRatio() <= 0.5f && GetHPRatio() > 0.0f)
+    {
+        SetMovementSpeed(WalkSpeed * 0.5f);
+    }
+
     // 체력이 0 이하가 되면 사망 처리
     if (CurrentHP <= 0.0f)
     {
