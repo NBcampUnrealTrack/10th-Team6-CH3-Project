@@ -2,13 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "InteractableTarget.h"
 #include "Radio.generated.h"
 
 
 class UBoxComponent;
 
 UCLASS()
-class LASTSIGNAL_API ARadio : public AActor
+class LASTSIGNAL_API ARadio : public AActor, public IInteractableTarget
 {
 	GENERATED_BODY()
 	
@@ -16,7 +17,7 @@ public:
 	
 	ARadio();
 
-	void Interact();  // 플레이어가 상호작용하면 캐릭쪽에서 호출
+	virtual void Interact_Implementation(AActor *Interactor) override;
 
 protected:
 	

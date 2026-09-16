@@ -2,6 +2,7 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "LastSignalGameMode.h"
+#include "PlayerCharacter.h"
 
 
 ARadio::ARadio()
@@ -32,8 +33,8 @@ void ARadio::OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AActor *Othe
         return;
 
     
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Radio: in range"));  //  나중에 교체
+     if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
+        PlayerCharacter->NearbyInteractable = this;
 }
 
 void ARadio::OnBoxEndOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
@@ -43,14 +44,12 @@ void ARadio::OnBoxEndOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherA
         return;
 
     
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Radio: out of range")); // 나중에 교ㅕ체
+    if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
+        PlayerCharacter->NearbyInteractable = nullptr;
 }
 
-void ARadio::Interact()
+void ARadio::Interact_Implementation(AActor *Interactor)
 {
-    // GetGameMode()는 AGameModeBase*를 돌려주기 때문에, 우리 GameMode의 함수(StartCountdown)를
-    // 쓰려면 실제 타입으로 캐스팅해야 함
     ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
 
     if (GameMode)
@@ -59,5 +58,4 @@ void ARadio::Interact()
         OnRadioActivated();              // 블루프린트 쪽 연출 시작 신호
     }
 }
-
 
