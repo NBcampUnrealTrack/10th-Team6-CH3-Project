@@ -1,0 +1,98 @@
+// LastSignalHUDWidget.cpp
+
+#include "LastSignalHUDWidget.h"
+#include "LastSignalPlayerHUDComponent.h"
+
+void ULastSignalHUDWidget::BindHUDComponent(ULastSignalPlayerHUDComponent* InComponent)
+{
+	if (!InComponent)
+	{
+		return;
+	}
+
+	BoundComponent = InComponent;
+
+	BoundComponent->OnHPChanged.AddDynamic(this, &ULastSignalHUDWidget::HandleHPChanged);
+	BoundComponent->OnAmmoChanged.AddDynamic(this, &ULastSignalHUDWidget::HandleAmmoChanged);
+	BoundComponent->OnScoreChanged.AddDynamic(this, &ULastSignalHUDWidget::HandleScoreChanged);
+	BoundComponent->OnMissionObjectiveChanged.AddDynamic(this, &ULastSignalHUDWidget::HandleMissionObjectiveChanged);
+	BoundComponent->OnTimerUpdated.AddDynamic(this, &ULastSignalHUDWidget::HandleTimerUpdated);
+	BoundComponent->OnSpecialGaugeChanged.AddDynamic(this, &ULastSignalHUDWidget::HandleSpecialGaugeChanged);
+	BoundComponent->OnSpecialAttackActivated.AddDynamic(this, &ULastSignalHUDWidget::HandleSpecialAttackActivated);
+	BoundComponent->OnSpecialAttackEnded.AddDynamic(this, &ULastSignalHUDWidget::HandleSpecialAttackEnded);
+	BoundComponent->OnKillConfirmed.AddDynamic(this, &ULastSignalHUDWidget::HandleKillConfirmed);
+	BoundComponent->OnHitMarkerRequested.AddDynamic(this, &ULastSignalHUDWidget::HandleHitMarkerRequested);
+	BoundComponent->OnGameOverRequested.AddDynamic(this, &ULastSignalHUDWidget::HandleGameOverRequested);
+
+	// 초기 상태 1회 갱신 (위젯이 늦게 추가되는 경우 대비)
+	HandleHPChanged(BoundComponent->CurrentHP, BoundComponent->MaxHP);
+	HandleAmmoChanged(BoundComponent->CurrentWeapon);
+	HandleScoreChanged(BoundComponent->Score);
+	HandleTimerUpdated(BoundComponent->TimeValue, BoundComponent->TimerMode);
+	HandleSpecialGaugeChanged(BoundComponent->SpecialGaugePercent);
+}
+
+void ULastSignalHUDWidget::HandleHPChanged(float CurrentHP, float MaxHP)
+{
+	const float Percent = (MaxHP > 0.f) ? (CurrentHP / MaxHP) : 0.f;
+	OnHPUpdated(CurrentHP, MaxHP, Percent);
+}
+
+void ULastSignalHUDWidget::HandleAmmoChanged(FLastSignalWeaponHUDData WeaponData)
+{
+	OnAmmoUpdated(WeaponData);
+}
+
+void ULastSignalHUDWidget::HandleScoreChanged(int32 NewScore)
+{
+	OnScoreUpdated(NewScore);
+}
+
+void ULastSignalHUDWidget::HandleMissionObjectiveChanged(FText NewObjective)
+{
+	OnMissionObjectiveUpdated(NewObjective);
+}
+
+void ULastSignalHUDWidget::HandleTimerUpdated(float TimeValue, ELastSignalTimerMode Mode)
+{
+	const bool bRed = (Mode == ELastSignalTimerMode::Countdown);
+	OnTimerUpdated(FormatTime(TimeValue), bRed);
+}
+
+void ULastSignalHUDWidget::HandleSpecialGaugeChanged(float GaugePercent)
+{
+	OnSpecialGaugeUpdated(GaugePercent, GaugePercent >= 100.f);
+}
+
+void ULastSignalHUDWidget::HandleSpecialAttackActivated()
+{
+	OnSpecialAttackActivated();
+}
+
+void ULastSignalHUDWidget::HandleSpecialAttackEnded()
+{
+	OnSpecialAttackEnded();
+}
+
+void ULastSignalHUDWidget::HandleKillConfirmed(FText VictimName)
+{
+	OnKillFeedEntryAdded(VictimName);
+}
+
+void ULastSignalHUDWidget::HandleHitMarkerRequested()
+{
+	OnHitMarkerShown();
+}
+
+void ULastSignalHUDWidget::HandleGameOverRequested()
+{
+	OnGameOverShown();
+}
+
+FText ULastSignalHUDWidget::FormatTime(float Seconds)
+{
+	const int32 TotalSeconds = FMath::Max(0, FMath::CeilToInt(Seconds));
+	const int32 Minutes = TotalSeconds / 60;
+	const int32 Secs = TotalSeconds % 60;
+	return FText::FromString(FString::Printf(TEXT("%02d:%02d"), Minutes, Secs));
+}
