@@ -8,10 +8,10 @@
 
 UAdrenalineSkill::UAdrenalineSkill()
 {
-    MaxSkillValue = 10.0f;       // 최대 스킬 게이지 100
+    MaxSkillValue = 1000.0f;       // 최대 스킬 게이지 100
     SkillDuration = 5.0f;       // 지속 시간
     ChargeRatePerSecond = 1.0f;  // 초당 패시브 충전량
-    KillBonusValue = 5.0f;      // 킬카운트 1당 충전량
+    KillBonusValue = 1000.0f;      // 킬카운트 1당 충전량
 
     ActiveNiagaraEffect = nullptr;
     AdrenalineVFX = nullptr;

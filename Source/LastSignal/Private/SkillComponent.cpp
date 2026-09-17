@@ -1,6 +1,8 @@
 ﻿#include "SkillComponent.h"
+#include "LastSignalGameState.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "LastSignalGameInstance.h"
 #include "TimerManager.h"
 
 // 디버그 출력용
@@ -44,6 +46,24 @@ USkillComponent::USkillComponent()
     KillBonusValue = 5.0f;      // 킬카운트 1당 충전량
 
     CurrentState = ESkillState::Charging;
+}
+
+void USkillComponent::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (UWorld *World = GetWorld())
+    {
+        if (ALastSignalGameState *GS = World->GetGameState<ALastSignalGameState>())
+        {
+            GS->OnKillCountChanged.AddDynamic(this, &USkillComponent::HandleZombieKilled);
+        }
+    }
+}
+
+void USkillComponent::HandleZombieKilled(int32 NewKillCount)
+{
+    OnZombieKilled();
 }
 
 void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

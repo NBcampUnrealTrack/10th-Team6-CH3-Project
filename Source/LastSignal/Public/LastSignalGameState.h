@@ -1,8 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
 #include "LastSignalGameState.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnKillCountChangedDelegate, int32, NewKillCount);
 
 UENUM(BlueprintType) // 타이머 상태값
 enum class ETimerMode : uint8
@@ -23,6 +25,9 @@ public:
 	int32 KillCount = 0;
     
 	void AddKillCount();
+
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnKillCountChangedDelegate OnKillCountChanged;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Timer") // 화면에 표시할 현재 타이머 모드
     ETimerMode TimerMode = ETimerMode::Stopwatch;

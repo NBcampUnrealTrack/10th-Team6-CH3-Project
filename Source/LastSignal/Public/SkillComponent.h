@@ -46,6 +46,11 @@ public:
     FOnSkillStateChangedDelegate OnSkillStateChanged; // UI 스킬 상태 변경 확인 (Charging, Ready, Active)
 
 protected:
+    virtual void BeginPlay() override;
+
+    UFUNCTION()
+    void HandleZombieKilled(int32 NewKillCount);
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
     float CurrentSkillValue;
 

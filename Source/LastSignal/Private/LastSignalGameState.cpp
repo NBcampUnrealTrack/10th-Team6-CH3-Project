@@ -1,4 +1,4 @@
-#include "LastSignalGameState.h"
+﻿#include "LastSignalGameState.h"
 
 void ALastSignalGameState::BeginPlay()
 {
@@ -10,4 +10,9 @@ void ALastSignalGameState::BeginPlay()
 void ALastSignalGameState::AddKillCount() //  킬카운트 
 {
     KillCount++;
+
+	if (OnKillCountChanged.IsBound())
+    {
+        OnKillCountChanged.Broadcast(KillCount);
+    }
 }
