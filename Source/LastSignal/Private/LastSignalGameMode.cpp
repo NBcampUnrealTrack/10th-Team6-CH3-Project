@@ -16,14 +16,19 @@ void ALastSignalGameMode::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("GameMode BeginPlay"));
 
     ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
+
+    APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)); // PlayerCharacter를 if문 밖에서 미리 캐스팅 — 아래 HP복원이랑 OnDied 구독 둘 다에서 씀 (중복 캐스팅 방지)
+
+    if (CurrentPlayerCharacter) 
+        CurrentPlayerCharacter->OnDied.AddDynamic(this, &ALastSignalGameMode::OnPlayerDied); // HP 0 이벤트 구독은 세이브 데이터 유무랑 상관없이 매번 걸려야 함 (그래서 아래 if(CurrentGameInstance) 블록 밖에 둠)
     
 if (CurrentGameInstance) // 저장된 값이 있으면 KillCount/HP부터 복원
     {
         if (ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
             CurrentGameState->KillCount = CurrentGameInstance->SavedKillCount;
 
-        if (APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
-            CurrentPlayerCharacter->SetCurrentHealth(CurrentGameInstance->SavedHP);
+        if (CurrentPlayerCharacter)
+            CurrentPlayerCharacter->SetCurrentHealth(CurrentGameInstance->SavedHP);  // 위에서 이미 캐스팅한 CurrentPlayerCharacter 재사용
     }
 
     if (CurrentGameInstance && CurrentGameInstance->bTimeLimitStarted)
@@ -40,6 +45,10 @@ if (CurrentGameInstance) // 저장된 값이 있으면 KillCount/HP부터 복원
                 CurrentGameState->TimerValue = CurrentGameInstance->SavedPlayTime; // 이어서 흐르던 플레이타임 복구
         }
     }
+
+
+
+
 }
 
 void ALastSignalGameMode::OnGoalReached(FName NextLevel) // 클리어 트리거
@@ -170,4 +179,10 @@ void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리
 {
     if (GEngine)
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
+}
+
+void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, 카운트다운 0이랑 같은 처리라 재사용
+{
+    // 새로 로직 안 만들고 (GAME OVER 메시지 + 현재 레벨 재시작) 그대로 호출
+    OnCountdownFailed();
 }
