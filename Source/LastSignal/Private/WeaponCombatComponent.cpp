@@ -94,15 +94,6 @@ void UWeaponCombatComponent::StartFire()
         return;
     }
 
-    // 산탄 패턴을 구현하기 전에는 공격·탄약 소비를 하지 않는다.
-    if (Stats.AttackType == EWeaponAttackType::Shotgun)
-    {
-        FHitResult UnusedHit;
-        bool bUnusedHit = false;
-        FireShotgun(UnusedHit, bUnusedHit);
-        return;
-    }
-
     if (bReloading)
     {
         // 한 발씩 장전하는 무기는 탄약이 있으면 장전을 끊고 발사한다.
@@ -308,23 +299,70 @@ bool UWeaponCombatComponent::FireShotgun(
     FHitResult &OutHit,
     bool &bOutHit)
 {
-    OutHit = FHitResult();
+    APawn *Pawn = Shooter.Get();
+    AController *Controller = Pawn ? Pawn->GetController() : nullptr;
+
+    if (!Controller || !GetWorld())
+    {
+        return false;
+    }
+
+    FVector ViewLocation;
+    FRotator ViewRotation;
+    Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+    FVector TraceStart = ViewLocation;
+    if (USceneComponent *Visual = RecoilVisual.Get())
+    {
+        if (Visual->DoesSocketExist(TEXT("Muzzle")))
+        {
+            TraceStart = Visual->GetSocketLocation(TEXT("Muzzle"));
+        }
+    }
+
+    const float TotalSpread = FMath::Clamp(
+        Stats.BaseSpreadAngle + CurrentSpreadHeat,
+        0.0f,
+        Stats.MaxSpreadAngle);
+
+    const float HalfConeAngleRad = FMath::DegreesToRadians(TotalSpread * 0.5f);
+
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(GetOwner());
+    Params.AddIgnoredActor(Pawn);
+
+    const int32 NumPellets = FMath::Max(1, Stats.PelletCount);
     bOutHit = false;
 
-    // TODO: 산탄 전용 로직 구현.
-    // 구상: 9펠릿 중 5개는 조준점 기준 고정 패턴.
-    // 나머지 4개는 크로스헤어 바깥의 랜덤 패턴을 검토한다.
-    // 크로스헤어 크기와 퍼짐 범위의 관계는 구현 시 결정한다.
-    // 일반탄 함수를 대신 호출하지 않는다.
-    // 구현 완료 시 StartFire()의 산탄 임시 차단도 제거해야 한다.
+    // 설정된 PelletCount (예: 9발) 수만큼 확산 발사
+    for (int32 i = 0; i < NumPellets; ++i)
+    {
+        const FVector PelletDir = FMath::VRandCone(ViewRotation.Vector(), HalfConeAngleRad);
+        const FVector End = TraceStart + (PelletDir * FMath::Max(1.0f, Stats.Range));
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("Shotgun pattern is not implemented: %s"),
-        *GetNameSafe(GetOwner()));
+        FHitResult PelletHit;
+        const bool bPelletHit = GetWorld()->LineTraceSingleByChannel(
+            PelletHit,
+            TraceStart,
+            End,
+            ECC_Visibility,
+            Params);
 
-    return false;
+        if (bPelletHit)
+        {
+            // 대표 이펙트 전달용 (첫 번째 명중 피격점 저장)
+            if (!bOutHit)
+            {
+                OutHit = PelletHit;
+                bOutHit = true;
+            }
+
+            // 맞은 펠릿당 데미지 개별 적용
+            ApplyDamage(PelletHit);
+        }
+    }
+
+    return true;
 }
 
 void UWeaponCombatComponent::StartReload()

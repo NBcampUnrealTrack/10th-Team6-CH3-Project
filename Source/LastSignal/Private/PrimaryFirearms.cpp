@@ -94,18 +94,18 @@ AMP153::AMP153()
     S.TacReloadTime = 0.65f;
     S.bEnableChamberRound = false;
 
-    S.PitchKick = FVector2D(-3.0f, -2.5f);
-    S.YawKick = FVector2D(-0.8f, 0.8f);
+    S.PitchKick = FVector2D(-6.0f, -4.5f);
+    S.YawKick = FVector2D(-1.5f, 1.5f);
 
-    S.CameraKickSpeed = 30.0f;
-    S.CameraReturnSpeed = 6.0f;
+    S.CameraKickSpeed = 18.0f;
+    S.CameraReturnSpeed = 3.0f;
 
-    S.VisualKickScale = 2.0f;
-    S.VisualKickSpeed = 28.0f;
-    S.VisualReturnSpeed = 9.0f;
+    S.VisualKickScale = 3.0f;
+    S.VisualKickSpeed = 20.0f;
+    S.VisualReturnSpeed = 6.0f;
     
-    S.BaseSpreadAngle = 3.0f;
-    S.MaxSpreadAngle = 5.0f;
+    S.BaseSpreadAngle = 3.5f;
+    S.MaxSpreadAngle = 6.0f;
     S.SpreadIncreasePerShot = 0.8f;
     S.SpreadRecoverySpeed = 6.0f;
 }
