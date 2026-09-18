@@ -4,9 +4,25 @@
 #include "PlayerCharacter.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "LastSignalPlayerController.h"
+#include "LastSignalPlayerHUDComponent.h"
+
 ALastSignalGameMode::ALastSignalGameMode()
 {
 	GameStateClass = ALastSignalGameState::StaticClass();
+}
+
+ULastSignalPlayerHUDComponent *ALastSignalGameMode::GetLocalHUDComponent() const
+{
+    if (APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0))
+    {
+        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+        {
+            return LastSignalPC->GetHUDComponent();
+        }
+    }
+
+    return nullptr;
 }
 
 void ALastSignalGameMode::BeginPlay()
@@ -95,6 +111,11 @@ void ALastSignalGameMode::StartStopwatch() // 스톱워치 시작
         CurrentGameState->TimerValue = 0.f;
 
         GetWorldTimerManager().SetTimer(TimerHandle, this, &ALastSignalGameMode::UpdateTimer, 1.0f, true);
+
+        if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+        {
+            HUD->UpdateTimerFromGameState(0.f, ELastSignalTimerMode::Stopwatch);
+        }
     }
 }
 
@@ -106,6 +127,11 @@ void ALastSignalGameMode::StartCountdown(float DurationSeconds) // 15분 카운�
         CurrentGameState->TimerValue = DurationSeconds;
 
         GetWorldTimerManager().SetTimer(TimerHandle, this, &ALastSignalGameMode::UpdateTimer, 1.0f, true);
+
+        if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+        {
+            HUD->UpdateTimerFromGameState(DurationSeconds, ELastSignalTimerMode::Countdown);
+        }
     }
 }
 
@@ -117,6 +143,11 @@ void ALastSignalGameMode::StartEscapeTimer(float DurationSeconds) // 3분 탈출
         CurrentGameState->TimerValue = DurationSeconds;
 
         GetWorldTimerManager().SetTimer(TimerHandle, this, &ALastSignalGameMode::UpdateTimer, 1.0f, true);
+
+        if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+        {
+            HUD->UpdateTimerFromGameState(DurationSeconds, ELastSignalTimerMode::Countdown);
+        }
     }
 }
 
@@ -164,6 +195,16 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
             OnEscapeSuccess();
         }
         break;
+    }
+
+    if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+    {
+        const ELastSignalTimerMode DisplayMode =
+            (CurrentGameState->TimerMode == ETimerMode::Stopwatch)
+                ? ELastSignalTimerMode::Stopwatch
+                : ELastSignalTimerMode::Countdown;
+
+        HUD->UpdateTimerFromGameState(CurrentGameState->TimerValue, DisplayMode);
     }
 }
 

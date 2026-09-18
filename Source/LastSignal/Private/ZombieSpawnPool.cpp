@@ -9,6 +9,10 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "TimerManager.h"
 
+// UI 관련 헤더
+#include "LastSignalPlayerController.h"      
+#include "LastSignalPlayerHUDComponent.h" 
+
 AZombieSpawnPool::AZombieSpawnPool()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -129,6 +133,8 @@ void AZombieSpawnPool::LoadMapSpecificData()
         PeriodicSpawnCount = FoundData->PeriodicSpawnCount;
         SpawnInterval = FoundData->SpawnInterval;
         MaxZombieCount = FoundData->MaxZombieCount;
+        // UI 추가
+        MissionObjectiveText = FoundData->MissionObjectiveText;
 
         bIsActivePool = true;
     }
@@ -209,6 +215,9 @@ void AZombieSpawnPool::StartSpawningProcess(APawn *PlayerPawn)
     if (bPlayerInside)
         return;
     bPlayerInside = true;
+
+    UpdateMissionObjective(); // ← UI 추가
+
 
     // 최초 수량 스폰
     if (!bInitialSpawnDone)
@@ -313,3 +322,57 @@ void AZombieSpawnPool::PrintDebugMessage(const FString &Message, FColor Color) c
         GEngine->AddOnScreenDebugMessage(-1, 3.0f, Color, Message);
     }
 }
+
+// UI 관련 함수
+void AZombieSpawnPool::UpdateMissionObjective() const
+{
+    UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] UpdateMissionObjective called. Text=%s"), *MissionObjectiveText.ToString());
+
+    if (MissionObjectiveText.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] MissionObjectiveText is EMPTY!"));
+        return;
+    }
+
+    APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0);
+    if (!PC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] PlayerController is null!"));
+        return;
+    }
+
+    ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC);
+    if (!LastSignalPC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] Cast to LastSignalPlayerController FAILED!"));
+        return;
+    }
+
+    ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent();
+    if (!HUD)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] HUDComponent is null!"));
+        return;
+    }
+
+    HUD->SetMissionObjective(MissionObjectiveText);
+    UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] SetMissionObjective called successfully!"));
+}
+
+// {
+//    if (MissionObjectiveText.IsEmpty())
+//    {
+//        return;
+//    }
+//
+//    if (APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0))
+//    {
+//        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+//        {
+//            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+//            {
+//                HUD->SetMissionObjective(MissionObjectiveText);
+//            }
+//        }
+//    }
+//}

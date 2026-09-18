@@ -8,6 +8,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
 
+// UI 추가
+#include "LastSignalPlayerController.h"
+#include "LastSignalPlayerHUDComponent.h"
+
 AZombieAICharacter::AZombieAICharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -80,6 +84,24 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
 
         if (ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this)))
             GameMode->OnZombieKilled(); // 킬카운트 증가 (게임모드로 보냄)
+
+
+       // UI 추가
+        // 플레이어가 이 좀비를 처치한 경우 HUD에 킬 전달
+        if (EventInstigator)
+        {
+            if (ALastSignalPlayerController *PlayerController =
+                    Cast<ALastSignalPlayerController>(EventInstigator))
+            {
+                if (ULastSignalPlayerHUDComponent *HUDComponent =
+                        PlayerController->GetHUDComponent())
+                {
+                    HUDComponent->RegisterKill(
+                        FText::FromString(TEXT("Zombie")));
+                }
+            }
+        }
+        // 여기까지
 
         UE_LOG(LogTemp, Error, TEXT("[Zombie] Dead!"));
 
