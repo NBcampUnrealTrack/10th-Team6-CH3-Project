@@ -1,5 +1,8 @@
 ﻿#include "WeaponCombatComponent.h"
 
+//사격 디버깅용 코드
+#include "DrawDebugHelpers.h"
+//
 #include "ZombieAICharacter.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
@@ -7,6 +10,8 @@
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+
+
 
 UWeaponCombatComponent::UWeaponCombatComponent()
 {
@@ -246,53 +251,108 @@ bool UWeaponCombatComponent::FireSingleShot(
     FHitResult &OutHit,
     bool &bOutHit)
 {
-    APawn *Pawn = Shooter.Get();
-    AController *Controller = Pawn ? Pawn->GetController() : nullptr;
+    OutHit = FHitResult();
+    bOutHit = false;
 
-    if (!Controller || !GetWorld())
+    UWorld *World = GetWorld();
+    APawn *Pawn = Shooter.Get();
+
+    // 현재 장착 코드에서 RecoilVisual에 WeaponMesh를 전달하고 있다.
+    USceneComponent *GunMesh = RecoilVisual.Get();
+
+    if (!World || !IsValid(Pawn) || !IsValid(GunMesh))
     {
         return false;
     }
 
-    FVector ViewLocation;
-    FRotator ViewRotation;
-    Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    static const FName MuzzleSocketName(TEXT("Muzzle"));
 
-    // 총구(Muzzle) 소켓을 먼저 조회 후 없을시 플레이어 위치를 기준으로 발사한다.
-    FVector TraceStart = ViewLocation;
-    if (USceneComponent *Visual = RecoilVisual.Get())
-    {
-        if (Visual->DoesSocketExist(TEXT("Muzzle")))
-        {
-            TraceStart = Visual->GetSocketLocation(TEXT("Muzzle"));
-        }
-    }
+    const bool bHasMuzzle =
+        GunMesh->DoesSocketExist(MuzzleSocketName);
 
-    // 현재 탄퍼짐을 연산한다.
-    const float TotalSpread = FMath::Clamp(
-        Stats.BaseSpreadAngle + CurrentSpreadHeat,
-        0.0f,
-        Stats.MaxSpreadAngle);
+    // 소켓이 있으면 소켓의 월드 좌표계를 사용한다.
+    // 없으면 총 메시 컴포넌트의 월드 좌표계를 사용한다.
+    const FTransform FireTransform = bHasMuzzle
+                                         ? GunMesh->GetSocketTransform(MuzzleSocketName, RTS_World)
+                                         : GunMesh->GetComponentTransform();
 
-    const float HalfConeAngleRad = FMath::DegreesToRadians(TotalSpread * 0.5f);
+    const FVector TraceStart = FireTransform.GetLocation();
 
-    // 조준선기준 탄퍼짐 계산 및 최종 위치 설정한다.
-    const FVector FireDirection = FMath::VRandCone(ViewRotation.Vector(), HalfConeAngleRad);
-    const FVector End = TraceStart + (FireDirection * FMath::Max(1.0f, Stats.Range));
+    // 소켓 또는 메시의 로컬 +X축을 발사 방향으로 사용한다.
+    // 카메라 방향과 랜덤 탄퍼짐은 사용하지 않는다.
+    const FVector FireDirection =
+        FireTransform.GetUnitAxis(EAxis::X);
+
+    const FVector End =
+        TraceStart + FireDirection * FMath::Max(1.0f, Stats.Range);
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(GetOwner());
     Params.AddIgnoredActor(Pawn);
 
-    bOutHit = GetWorld()->LineTraceSingleByChannel(
+    bOutHit = World->LineTraceSingleByChannel(
         OutHit,
         TraceStart,
         End,
         ECC_Visibility,
         Params);
 
-    // 명중하지 않아도 총알 한 발은 정상적으로 발사한 것이다.
+    // 디버그: 실제 충돌 지점까지만 선을 표시한다.
+    const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
+
+    DrawDebugLine(
+        World,
+        TraceStart,
+        DebugEnd,
+        bOutHit ? FColor::Green : FColor::Red,
+        false,
+        10.0f,
+        1,
+        4.0f);
+
+    // 디버그: 발사 시작점은 파란 구체로 표시한다.
+    DrawDebugSphere(
+        World,
+        TraceStart,
+        3.0f,
+        8,
+        FColor::Blue,
+        false,
+        10.0f,
+        1,
+        1.0f);
+
+    if (bOutHit)
+    {
+        DrawDebugPoint(
+            World,
+            OutHit.ImpactPoint,
+            15.0f,
+            FColor::Yellow,
+            false,
+            10.0f,
+            1);
+    }
+
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT("[TraceDebug] Source=%s Hit=%d"),
+        bHasMuzzle ? TEXT("MuzzleSocket") : TEXT("WeaponMesh"),
+        bOutHit);
+
+    // 빗나가도 발사는 실행됐으므로 탄약은 소비한다.
     return true;
+    // 디버깅용 임시 주석처리
+    // bOutHit = GetWorld()->LineTraceSingleByChannel(
+    //   OutHit,
+    // TraceStart,
+    // End,
+    // ECC_Visibility,
+    // Params);
+
+    // 명중하지 않아도 총알 한 발은 정상적으로 발사한 것이다.
+    // return true;
 }
 
 bool UWeaponCombatComponent::FireShotgun(

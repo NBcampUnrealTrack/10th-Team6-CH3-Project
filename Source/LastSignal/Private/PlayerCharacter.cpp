@@ -29,7 +29,7 @@ APlayerCharacter::APlayerCharacter()
 
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
     FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
-    FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // 눈높이 임의 설정
+        FirstPersonCameraComponent->SetRelativeLocation(FVector(-11.765135f, 11.176215f, 13.473909f)); // 눈높이 임의 설정
     FirstPersonCameraComponent->bUsePawnControlRotation = true;                 // 마우스로 카메라 상하좌우 회전
 
     GetCharacterMovement()->NavAgentProps.bCanCrouch = true; // 웅크리시 설정
@@ -44,7 +44,11 @@ void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (APlayerController *PlayerController = Cast<APlayerController>(GetController()))
+        // 설정된 카메라 높이를 웅크리기 보정의 기준으로 저장한다.
+        DefaultCameraRelativeZ =
+            FirstPersonCameraComponent->GetRelativeLocation().Z;
+
+        if (APlayerController *PlayerController = Cast<APlayerController>(GetController()))
         {
             if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
                     ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
@@ -61,7 +65,7 @@ void APlayerCharacter::BeginPlay()
             }
         }
 
-    if (WeaponClass) // 무기 클래스가 지정돼 있으면 스폰해서 바로 장착
+        if (WeaponClass) // 무기 클래스가 지정돼 있으면 스폰해서 바로 장착
         {
             EquippedWeapon = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass);
 
@@ -75,6 +79,7 @@ void APlayerCharacter::BeginPlay()
         {
             UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
         }
+    
 }
 	
 
