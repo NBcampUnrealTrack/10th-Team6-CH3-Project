@@ -11,7 +11,8 @@ class LASTSIGNAL_API UBTService_CombatState : public UBTService_BlackboardBase
 	
 	public:
         UBTService_CombatState();
-
+          UPROPERTY(EditAnywhere, Category = "AI")
+          float CombatDistance = 2000.f;
         protected:
         virtual void TickNode(UBehaviorTreeComponent &OwnerComp, uint8 *NodeMemory, float DeltaSeconds) override;
 };

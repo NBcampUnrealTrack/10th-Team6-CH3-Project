@@ -19,7 +19,6 @@ void UBTService_CombatState::TickNode(UBehaviorTreeComponent &OwnerComp, uint8 *
 
     float Distance = FVector::Distance(AIPawn->GetActorLocation(), playerPawn->GetActorLocation());
 
-    float CombatDistance = 500;
 
     if (Distance <= CombatDistance)
     {
