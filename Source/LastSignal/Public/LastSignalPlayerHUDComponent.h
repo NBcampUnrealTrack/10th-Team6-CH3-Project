@@ -10,6 +10,7 @@
 #include "LastSignalHUDTypes.h"
 #include "LastSignalPlayerHUDComponent.generated.h"
 
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, float, CurrentHP, float, MaxHP);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAmmoChanged, FLastSignalWeaponHUDData, WeaponData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnScoreChanged, int32, NewScore);

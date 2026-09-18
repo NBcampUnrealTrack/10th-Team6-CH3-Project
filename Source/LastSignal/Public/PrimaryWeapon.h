@@ -5,6 +5,7 @@
 #include "InputCoreTypes.h"
 #include "PrimaryWeapon.generated.h"
 
+
 class APawn;
 class APlayerController;
 class USceneComponent;
@@ -14,6 +15,9 @@ class UEnhancedInputComponent;
 class UEnhancedInputLocalPlayerSubsystem;
 class UInputAction;
 class UInputMappingContext;
+
+// UI 추가
+class ALastSignalPlayerController;
 
 // 주무기만 상속하는 부모.
 // 나중에 보조무기는 이 클래스를 상속하지 않는다.
@@ -83,6 +87,10 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
 
     UFUNCTION()
     void HandleReload(bool bReloading);
+
+    // UI에 노출되는 탄수
+    UFUNCTION()
+    void HandleAmmoChanged(int32 CurrentAmmo, int32 ReserveAmmo);
 
     // 이 무기 전용 입력 컴포넌트와 매핑을 사용한다.
     UPROPERTY()
