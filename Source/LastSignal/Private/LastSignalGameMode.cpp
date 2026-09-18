@@ -151,7 +151,7 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
             CurrentGameState->TimerValue = 0.f;
 
             GetWorldTimerManager().ClearTimer(TimerHandle); // 0 이후에도 계속 호출되는거 방지
-            OnCountdownFailed();
+            OnGameOver();
         }
         break;
 
@@ -168,7 +168,7 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     }
 }
 
-void ALastSignalGameMode::OnCountdownFailed() // 카운트다운 끝나면 게임 오버 함수 구현
+void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 실패 / 플레이어 사망 공용)
 {
     if (GEngine)
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("GAME OVER"));
@@ -195,8 +195,8 @@ void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
 }
 
-void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, 카운트다운 0이랑 같은 처리라 재사용
+void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, OnGameOver 재사용
 {
-    // 새로 로직 안 만들고 (GAME OVER 메시지 + 현재 레벨 재시작) 그대로 호출
-    OnCountdownFailed();
+    // 새로 로직 안 만들고 그대로 위임 (게임오버 위젯 표시)
+    OnGameOver();
 }
