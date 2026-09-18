@@ -2,6 +2,7 @@
 #include "LastSignalGameState.h"
 #include "LastSignalGameInstance.h"
 #include "PlayerCharacter.h"
+#include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "LastSignalPlayerController.h"
@@ -181,7 +182,7 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
             CurrentGameState->TimerValue = 0.f;
 
             GetWorldTimerManager().ClearTimer(TimerHandle); // 0 이후에도 계속 호출되는거 방지
-            OnCountdownFailed();
+            OnGameOver();
         }
         break;
 
@@ -208,12 +209,25 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     }
 }
 
-void ALastSignalGameMode::OnCountdownFailed() // 카운트다운 끝나면 게임 오버 함수 구현
+void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 실패 / 플레이어 사망 공용)
 {
     if (GEngine)
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("GAME OVER"));
 
-    UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this))); // 현재 레벨 재시작
+    if (!GameOverClass) // 위젯 BP 안 지정돼 있으면 그냥 무시 (BP_LastSignalGameMode에 아직 설정 안 했을 때 대비)
+        return;
+
+    APlayerController *CurrentPlayerController = GetWorld()->GetFirstPlayerController(); // 위젯 만들고 입력모드 바꾸려면 PlayerController 필요 , PlayerController를 가져오는 것
+    if (!CurrentPlayerController)
+        return;
+
+    UUserWidget *GameOverWidget = CreateWidget<UUserWidget>(CurrentPlayerController, GameOverClass); // GameOverClass에 꽂힌 WBP_GameOver로 위젯 인스턴스 생성
+    if (!GameOverWidget)
+        return;
+
+    GameOverWidget->AddToViewport();                           // 실제 화면에 그려지게 뷰포트에 추가
+    CurrentPlayerController->SetInputMode(FInputModeUIOnly()); // 조작 입력을 UI(버튼)로만 받게 전환
+    CurrentPlayerController->bShowMouseCursor = true;          // 버튼 클릭하려면 마우스 커서 보여야 함
 }
 
 void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
@@ -222,8 +236,8 @@ void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
 }
 
-void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, 카운트다운 0이랑 같은 처리라 재사용
+void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, OnGameOver 재사용
 {
-    // 새로 로직 안 만들고 (GAME OVER 메시지 + 현재 레벨 재시작) 그대로 호출
-    OnCountdownFailed();
+    // 새로 로직 안 만들고 그대로 위임 (게임오버 위젯 표시)
+    OnGameOver();
 }
