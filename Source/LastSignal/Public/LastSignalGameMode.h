@@ -36,4 +36,6 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	 class ULastSignalPlayerHUDComponent *GetLocalHUDComponent() const;
+
 };

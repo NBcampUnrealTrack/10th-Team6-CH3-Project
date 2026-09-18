@@ -4,6 +4,10 @@
 #include "LastSignalGameMode.h"
 #include "PlayerCharacter.h"
 
+// UI 추가
+#include "LastSignalPlayerController.h"      
+#include "LastSignalPlayerHUDComponent.h"    
+#include "GameFramework/Pawn.h"
 
 ARadio::ARadio()
 {
@@ -57,5 +61,20 @@ void ARadio::Interact_Implementation(AActor *Interactor)
         GameMode->StartCountdown(900.f); // 15분(900초) 카운트다운 시작
         OnRadioActivated();              // 블루프린트 쪽 연출 시작 신호
     }
+
+    // UI 추가: 플레이어 HUD 컴포넌트에 접근하여 HP 회복 및 카운트다운 시작
+    if (APawn *PlayerPawn = Cast<APawn>(Interactor))
+    {
+        if (ALastSignalPlayerController *PC =
+                Cast<ALastSignalPlayerController>(PlayerPawn->GetController()))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
+            {
+                HUD->HealToFull();
+                HUD->SwitchToCountdown(900.f);
+            }
+        }
+    }
+    // 여기까지
 }
 
