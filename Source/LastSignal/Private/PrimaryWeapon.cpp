@@ -1,5 +1,9 @@
 ﻿#include "PrimaryWeapon.h"
 
+// UI 추가
+#include "LastSignalPlayerController.h"       
+#include "LastSignalPlayerHUDComponent.h"   
+
 #include "WeaponCombatComponent.h"
 
 #include "Components/SceneComponent.h"
@@ -11,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+ 
 
 APrimaryWeapon::APrimaryWeapon()
 {
@@ -78,6 +83,10 @@ void APrimaryWeapon::BeginPlay()
     Combat->OnReloadChanged.AddDynamic(
         this, &APrimaryWeapon::HandleReload);
 
+    // UI 추가
+    Combat->OnAmmoChanged.AddDynamic(              
+        this, &APrimaryWeapon::HandleAmmoChanged); 
+
     // 장착되기 전에는 보이지 않고 입력도 받지 않는다.
     SetActorHiddenInGame(true);
 }
@@ -92,6 +101,10 @@ void APrimaryWeapon::EndPlay(
 
     Combat->OnReloadChanged.RemoveDynamic(
         this, &APrimaryWeapon::HandleReload);
+
+    // UI 추가
+    Combat->OnAmmoChanged.RemoveDynamic(           
+        this, &APrimaryWeapon::HandleAmmoChanged); 
 
     Super::EndPlay(EndPlayReason);
 }
@@ -220,9 +233,53 @@ void APrimaryWeapon::HandleShot(
     
     
     PlayShotEffects(bHit, HitResult);
+
+    // UI 추가: 맞았을 때만 히트마커를 요청한다.
+
+        if (bHit && EquippedController.IsValid())
+    {
+        if (ALastSignalPlayerController *LastSignalPC =
+                Cast<ALastSignalPlayerController>(EquippedController.Get()))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+            {
+                HUD->RequestHitMarker();
+            }
+        }
+    }
 }
+
+
 
 void APrimaryWeapon::HandleReload(bool bReloading)
 {
     PlayReloadEffects(bReloading);
+}
+
+// UI 추가
+void APrimaryWeapon::HandleAmmoChanged(int32 CurrentAmmo, int32 ReserveAmmo)
+{
+    APlayerController *PC = EquippedController.Get();
+    if (!PC)
+    {
+        return;
+    }
+
+    ALastSignalPlayerController *LastSignalPC =
+        Cast<ALastSignalPlayerController>(PC);
+
+    if (!LastSignalPC)
+    {
+        return;
+    }
+
+    if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+    {
+        FLastSignalWeaponHUDData WeaponData;
+        WeaponData.WeaponName = FText::FromString(GetClass()->GetName());
+        WeaponData.CurrentAmmo = CurrentAmmo;
+        WeaponData.MagazineSize = Combat->Stats.MagazineSize;
+
+        HUD->SetWeapon(WeaponData);
+    }
 }

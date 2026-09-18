@@ -14,6 +14,10 @@
 #include "Engine/World.h"
 #include "InteractableTarget.h"
 
+// UI 추가
+#include "LastSignalPlayerController.h"      
+#include "LastSignalPlayerHUDComponent.h"    
+
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -218,7 +222,19 @@ float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &Damag
 
     CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth); // 체력 깎기. Clamp로 0~MaxHealth 범위를 벗어나지 않게 고정
 
+    // UI 추가
     UE_LOG(LogTemp, Log, TEXT("Player took %.0f damage, Health: %.0f/%.0f"), ActualDamage, CurrentHealth, MaxHealth); // 로그로 데미지량과 체력 상태 확인
+    if (APlayerController *PC = Cast<APlayerController>(GetController()))
+    {
+        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+            {
+                HUD->ApplyDamage(ActualDamage);
+            }
+        }
+    }
+    // 여기까지
 
     if (CurrentHealth <= 0.0f) // 체력 0 이하가 되면 죽음 처리
     {
