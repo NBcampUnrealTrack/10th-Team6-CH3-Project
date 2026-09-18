@@ -6,6 +6,8 @@
 #include "LastSignalGameMode.generated.h"
 
 
+class UUserWidget;
+
 UCLASS()
 class LASTSIGNAL_API ALastSignalGameMode : public AGameModeBase
 {
@@ -22,6 +24,9 @@ public:
     
 	UFUNCTION()
 	void OnPlayerDied(); // HP 0 됐을 때 호출되는 함수, 게임오버 처리용
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> GameOverClass; // 게임오버 위젯 BP 지정용
 
 	FTimerHandle TimerHandle; // 타이머 취소,갱신할 때 쓰는 꼬리표
 

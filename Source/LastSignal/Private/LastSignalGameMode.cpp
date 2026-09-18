@@ -2,6 +2,7 @@
 #include "LastSignalGameState.h"
 #include "LastSignalGameInstance.h"
 #include "PlayerCharacter.h"
+#include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 ALastSignalGameMode::ALastSignalGameMode()
@@ -172,7 +173,20 @@ void ALastSignalGameMode::OnCountdownFailed() // 카운트다운 끝나면 게�
     if (GEngine)
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("GAME OVER"));
 
-    UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this))); // 현재 레벨 재시작
+    if (!GameOverClass) // 위젯 BP 안 지정돼 있으면 그냥 무시 (BP_LastSignalGameMode에 아직 설정 안 했을 때 대비)
+        return;
+
+    APlayerController *CurrentPlayerController = GetWorld()->GetFirstPlayerController(); // 위젯 만들고 입력모드 바꾸려면 PlayerController 필요 , PlayerController를 가져오는 것
+    if (!CurrentPlayerController)
+        return;
+
+    UUserWidget *GameOverWidget = CreateWidget<UUserWidget>(CurrentPlayerController, GameOverClass); // GameOverClass에 꽂힌 WBP_GameOver로 위젯 인스턴스 생성
+    if (!GameOverWidget)
+        return;
+
+    GameOverWidget->AddToViewport();                           // 실제 화면에 그려지게 뷰포트에 추가
+    CurrentPlayerController->SetInputMode(FInputModeUIOnly()); // 조작 입력을 UI(버튼)로만 받게 전환
+    CurrentPlayerController->bShowMouseCursor = true;          // 버튼 클릭하려면 마우스 커서 보여야 함
 }
 
 void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
