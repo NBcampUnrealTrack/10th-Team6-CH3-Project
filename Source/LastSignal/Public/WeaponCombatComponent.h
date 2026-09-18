@@ -191,6 +191,18 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
     FWeaponReloadEvent OnReloadChanged;
 
+    // 무기 입력에서 요청한 조준 상태를 적용한다.
+    void SetAiming(bool bNewAiming);
+
+    // 애니메이션과 무기가 같은 조준 상태를 사용한다.
+    UFUNCTION(BlueprintPure, Category = "Weapon|Aim")
+    bool IsAiming() const { return bAiming; }
+
+    // 조준 중에는 기존 반동의 65%를 적용한다.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Aim",
+              meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float ADSRecoilMultiplier = 0.65f;
+
   protected:
     virtual void BeginPlay() override;
 
@@ -217,6 +229,8 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     void UpdateRecoil(float DeltaTime);
     void ResetRecoil();
     void NotifyAmmo();
+    // 실제 적용 중인 조준 상태.
+    bool bAiming = false;
 
     TWeakObjectPtr<APawn> Shooter;
     TWeakObjectPtr<USceneComponent> RecoilVisual;
@@ -235,7 +249,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
     float CurrentSpreadHeat = 0.0f;
 
-    // カメラ反동 목표값과 현재 적용된 반동값.
+    // 반동 목표값과 현재 적용된 반동값.
     FVector2D CameraTarget = FVector2D::ZeroVector;
     FVector2D CameraCurrent = FVector2D::ZeroVector;
 

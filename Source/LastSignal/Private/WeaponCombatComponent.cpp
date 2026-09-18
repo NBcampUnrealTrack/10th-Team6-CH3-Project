@@ -3,6 +3,7 @@
 //사격 디버깅용 코드
 #include "DrawDebugHelpers.h"
 //
+#include "GameFramework/Character.h"
 #include "ZombieAICharacter.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
@@ -17,7 +18,7 @@ UWeaponCombatComponent::UWeaponCombatComponent()
 {
     // 사격은 타이머로 처리하고, 반동 보간만 Tick에서 처리한다.
     PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.bStartWithTickEnabled = false;
+    PrimaryComponentTick.bStartWithTickEnabled = true;
 }
 
 void UWeaponCombatComponent::BeginPlay()
@@ -65,6 +66,7 @@ void UWeaponCombatComponent::ActivateWeapon(
 
 void UWeaponCombatComponent::DeactivateWeapon()
 {
+    bAiming = false;
     bEquipped = false;
     bTriggerHeld = false;
     CurrentSpreadHeat = 0.0f; // 누적 탄퍼짐 초기화
@@ -297,30 +299,30 @@ bool UWeaponCombatComponent::FireSingleShot(
         ECC_Visibility,
         Params);
 
-    // 디버그: 실제 충돌 지점까지만 선을 표시한다.
-    const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
+    //// 디버그: 실제 충돌 지점까지만 선을 표시한다.
+    //const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
 
-    DrawDebugLine(
-        World,
-        TraceStart,
-        DebugEnd,
-        bOutHit ? FColor::Green : FColor::Red,
-        false,
-        10.0f,
-        1,
-        4.0f);
+    //DrawDebugLine(
+    //    World,
+    //    TraceStart,
+    //    DebugEnd,
+    //    bOutHit ? FColor::Green : FColor::Red,
+    //    false,
+    //    10.0f,
+    //    1,
+    //    4.0f);
 
-    // 디버그: 발사 시작점은 파란 구체로 표시한다.
-    DrawDebugSphere(
-        World,
-        TraceStart,
-        3.0f,
-        8,
-        FColor::Blue,
-        false,
-        10.0f,
-        1,
-        1.0f);
+    //// 디버그: 발사 시작점은 파란 구체로 표시한다.
+    //DrawDebugSphere(
+    //    World,
+    //    TraceStart,
+    //    3.0f,
+    //    8,
+    //    FColor::Blue,
+    //    false,
+    //    10.0f,
+    //    1,
+    //    1.0f);
 
     if (bOutHit)
     {
@@ -518,28 +520,83 @@ void UWeaponCombatComponent::NotifyAmmo()
     OnAmmoChanged.Broadcast(CurrentAmmo, ReserveAmmo);
 }
 
+//이하는 과거 코드 주석
+//void UWeaponCombatComponent::AddRecoil()
+//{
+//    // 한 발의 카메라 반동을 현재 목표에 누적한다.
+//    CameraTarget.X += FMath::FRandRange(
+//        Stats.PitchKick.X, Stats.PitchKick.Y);
+//
+//    CameraTarget.Y += FMath::FRandRange(
+//        Stats.YawKick.X, Stats.YawKick.Y);
+//
+//    // 블루프린트의 팔 위치 반동 범위를 옮겼다.
+//    // 새 총 메시의 로컬 축에 맞게 수치는 조정할 수 있다.
+//    VisualLocationTarget += FVector(
+//                                FMath::FRandRange(-10.0f, -5.0f),
+//                                FMath::FRandRange(1.0f, 4.0f),
+//                                FMath::FRandRange(-0.6f, 0.6f)) *
+//                            Stats.VisualKickScale;
+//
+//    // FRotator 생성자 순서는 Pitch, Yaw, Roll이다.
+//    const FRotator Kick(
+//        FMath::FRandRange(-3.0f, 3.0f) * Stats.VisualKickScale,
+//        FMath::FRandRange(3.0f, 6.0f) * Stats.VisualKickScale,
+//        FMath::FRandRange(-2.0f, 2.0f) * Stats.VisualKickScale);
+//
+//    VisualRotationTarget =
+//        (VisualRotationTarget.Quaternion() * Kick.Quaternion()).Rotator();
+//}
+////////여기까지
+
 void UWeaponCombatComponent::AddRecoil()
 {
-    // 한 발의 카메라 반동을 현재 목표에 누적한다.
+    // 발사 순간의 실제 앉기 상태를 확인한다.
+    const ACharacter *Character = Cast<ACharacter>(Shooter.Get());
+    const bool bCrouched = Character && Character->bIsCrouched;
+
+    // 서 있으면 기존 반동, 앉으면 기존 반동의 70%를 적용한다.
+    const float CrouchRecoilMultiplier = 0.7f;
+
+    // 앉기와 조준 보정을 함께 적용한다.
+    // 앉아서 조준하면 0.7 × 0.65 = 0.455배가 된다.
+    const float CrouchMultiplier =
+        bCrouched ? CrouchRecoilMultiplier : 1.0f;
+
+    const float AimMultiplier =
+        bAiming ? ADSRecoilMultiplier : 1.0f;
+
+    const float StanceMultiplier =
+        CrouchMultiplier * AimMultiplier;
+
+    // 카메라 반동에 자세 배율을 적용한 뒤 누적한다.
     CameraTarget.X += FMath::FRandRange(
-        Stats.PitchKick.X, Stats.PitchKick.Y);
+                          Stats.PitchKick.X,
+                          Stats.PitchKick.Y) *
+                      StanceMultiplier;
 
     CameraTarget.Y += FMath::FRandRange(
-        Stats.YawKick.X, Stats.YawKick.Y);
+                          Stats.YawKick.X,
+                          Stats.YawKick.Y) *
+                      StanceMultiplier;
 
-    // 블루프린트의 팔 위치 반동 범위를 옮겼다.
-    // 새 총 메시의 로컬 축에 맞게 수치는 조정할 수 있다.
+    // 총의 시각적 반동은 무기 고유 강도와 자세 배율을 함께 사용한다.
+    const float VisualScale =
+        Stats.VisualKickScale * StanceMultiplier;
+
+    // 기존의 전후·좌우·상하 이동 범위와 누적 방식을 유지한다.
     VisualLocationTarget += FVector(
                                 FMath::FRandRange(-10.0f, -5.0f),
-                                FMath::FRandRange(1.0f, 4.0f),
+                                FMath::FRandRange(-2.0f, 2.0f),
                                 FMath::FRandRange(-0.6f, 0.6f)) *
-                            Stats.VisualKickScale;
+                            VisualScale;
 
+    // 기존 회전 범위를 유지하면서 앉았을 때 강도를 줄인다.
     // FRotator 생성자 순서는 Pitch, Yaw, Roll이다.
     const FRotator Kick(
-        FMath::FRandRange(-3.0f, 3.0f) * Stats.VisualKickScale,
-        FMath::FRandRange(3.0f, 6.0f) * Stats.VisualKickScale,
-        FMath::FRandRange(-2.0f, 2.0f) * Stats.VisualKickScale);
+        FMath::FRandRange(-3.0f, 3.0f) * VisualScale,
+        FMath::FRandRange(-7.5f, 7.5f) * VisualScale,
+        FMath::FRandRange(-2.0f, 2.0f) * VisualScale);
 
     VisualRotationTarget =
         (VisualRotationTarget.Quaternion() * Kick.Quaternion()).Rotator();
@@ -647,4 +704,10 @@ void UWeaponCombatComponent::ResetRecoil()
 
     VisualRotationTarget = FRotator::ZeroRotator;
     VisualRotationCurrent = FRotator::ZeroRotator;
+}
+
+void UWeaponCombatComponent::SetAiming(bool bNewAiming)
+{
+    // 장착 중이고 재장전하지 않을 때만 조준할 수 있다.
+    bAiming = bNewAiming && bEquipped && !bReloading;
 }
