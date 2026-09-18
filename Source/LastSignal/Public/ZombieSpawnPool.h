@@ -37,6 +37,10 @@ struct FZombieSpawnPoolData : public FTableRowBase
     // 필드 내 최대 유지 가능 좀비 수
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
     int32 MaxZombieCount = 15;
+
+    // UI 추가: 화면에 표시할 미션 목표 문구
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
+    FText MissionObjectiveText;
 };
 
 UCLASS()
@@ -86,6 +90,10 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
     int32 MaxZombieCount = 15;
 
+    // UI 추가
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
+    FText MissionObjectiveText;
+
     // 디버그 메세지 화면 표시 여부
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Debug")
     bool bShowDebugLog = true;
@@ -115,4 +123,7 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     void CleanupDeadZombies();
     bool IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const;
     void PrintDebugMessage(const FString &Message, FColor Color = FColor::Green) const;
+
+    // UI
+    void UpdateMissionObjective() const;
 };
