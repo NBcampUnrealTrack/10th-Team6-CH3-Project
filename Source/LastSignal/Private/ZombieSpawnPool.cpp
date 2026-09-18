@@ -13,13 +13,23 @@ AZombieSpawnPool::AZombieSpawnPool()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
-    RootComponent = TriggerBox;
+    // 공통 기준점 루트 컴포넌트 생성
+    DefaultRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultRootComponent"));
+    SetRootComponent(DefaultRootComponent);
 
+    // 트리거 박스 (오직 플레이어 진입/퇴장 오버랩 감지용)
+    TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
+    TriggerBox->SetupAttachment(RootComponent);
     TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     TriggerBox->SetCollisionObjectType(ECC_WorldDynamic);
     TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
     TriggerBox->SetGenerateOverlapEvents(true);
+
+    // 스폰 박스 (오직 좀비 스폰 위치 영역 계산용 - 콜리전 차단)
+    SpawnBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnBox"));
+    SpawnBox->SetupAttachment(RootComponent);
+    SpawnBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    SpawnBox->SetGenerateOverlapEvents(false);
 }
 
 void AZombieSpawnPool::BeginPlay()
@@ -35,7 +45,7 @@ void AZombieSpawnPool::BeginPlay()
         return;
     }
 
-    // 오버랩 이벤트
+    // 트리거 박스 오버랩 이벤트 바인딩
     if (TriggerBox)
     {
         TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AZombieSpawnPool::OnOverlapBegin);
@@ -285,10 +295,10 @@ void AZombieSpawnPool::CleanupDeadZombies()
 
 FVector AZombieSpawnPool::GetRandomSpawnPoint() const
 {
-    if (TriggerBox)
+    if (SpawnBox)
     {
-        FVector Center = TriggerBox->GetComponentLocation();
-        FVector Extents = TriggerBox->GetScaledBoxExtent();
+        const FVector Center = SpawnBox->GetComponentLocation();
+        const FVector Extents = SpawnBox->GetScaledBoxExtent();
         return UKismetMathLibrary::RandomPointInBoundingBox(Center, Extents);
     }
     return GetActorLocation();
