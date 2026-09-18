@@ -109,3 +109,37 @@ AMP153::AMP153()
     S.SpreadIncreasePerShot = 0.8f;
     S.SpreadRecoverySpeed = 6.0f;
 }
+
+AGlock19::AGlock19()
+{
+    FWeaponStats &S = Combat->Stats;
+
+    S.FireMode = EWeaponFireMode::SemiAuto;
+    S.AttackType = EWeaponAttackType::Single;
+    S.ReloadType = EWeaponReloadType::Magazine;
+
+    S.Damage = 18.0f;
+    S.RPM = 300.0f;
+    S.Range = 8000.0f;
+
+    S.MagazineSize = 12;
+    S.InitialReserveAmmo = 48;
+    S.ReloadTime = 1.8f;
+    S.TacReloadTime = 1.2f;
+    S.bEnableChamberRound = true;
+
+    S.PitchKick = FVector2D(-1.5f, -1.0f);
+    S.YawKick = FVector2D(-0.3f, 0.3f);
+
+    S.CameraKickSpeed = 25.0f;
+    S.CameraReturnSpeed = 10.0f;
+
+    S.VisualKickScale = 0.8f;
+    S.VisualKickSpeed = 30.0f;
+    S.VisualReturnSpeed = 15.0f;
+
+    S.BaseSpreadAngle = 0.2f;
+    S.MaxSpreadAngle = 2.5f;
+    S.SpreadIncreasePerShot = 0.4f;
+    S.SpreadRecoverySpeed = 10.0f;
+}
