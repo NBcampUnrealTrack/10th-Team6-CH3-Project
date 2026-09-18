@@ -33,3 +33,13 @@ class LASTSIGNAL_API AMP153 : public APrimaryWeapon
   public:
     AMP153();
 };
+
+// Glock19: 권총 (보조무기)
+UCLASS()
+class LASTSIGNAL_API AGlock19 : public APrimaryWeapon
+{
+    GENERATED_BODY()
+
+  public:
+    AGlock19();
+};
