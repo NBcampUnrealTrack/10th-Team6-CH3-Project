@@ -99,6 +99,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> InteractAction;
 
+    // 일시정지 메뉴 입력 액션
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> PauseAction;
+
     // 스킬 컴포넌트
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     TObjectPtr<USkillComponent> SkillComponent;
@@ -113,6 +117,7 @@ protected:
     void StopCrouch(); 
     void UseSkill();
     void TryInteract();
+    void TogglePauseMenu();
 
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
 

@@ -150,14 +150,29 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &APlayerCharacter::TryInteract);
         }
 
+        if (PauseAction) // 일시정지 메뉴 입력 바인딩
+        {
+            EnhancedInput->BindAction(PauseAction, ETriggerEvent::Started, this, &APlayerCharacter::TogglePauseMenu);
+        }
+
     }
 }
 
-void APlayerCharacter::TryInteract()
+void APlayerCharacter::TryInteract() // 인터랙트
 {
     if (NearbyInteractable && NearbyInteractable->Implements<UInteractableTarget>())
         IInteractableTarget::Execute_Interact(NearbyInteractable, this);
 }
+
+void APlayerCharacter::TogglePauseMenu() // 일시정지
+{
+   
+    if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(GetController()))
+    {
+        LastSignalPC->TogglePauseMenu();
+    }
+}
+
 
 void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 {
