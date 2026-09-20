@@ -34,6 +34,12 @@ void ULastSignalPlayerHUDComponent::HealToFull()
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
 }
 
+void ULastSignalPlayerHUDComponent::SetHP(float NewHP)
+{
+    CurrentHP = FMath::Clamp(NewHP, 0.f, MaxHP);
+    OnHPChanged.Broadcast(CurrentHP, MaxHP);
+}
+
 void ULastSignalPlayerHUDComponent::SetWeapon(const FLastSignalWeaponHUDData& NewWeapon)
 {
 	CurrentWeapon = NewWeapon;
