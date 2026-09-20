@@ -28,17 +28,26 @@ public:
 
     virtual float TakeDamage(float DamageAmount, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) override; // 데미지 받는 함수 ( 캐릭터가 데미지 받으면 자동 호출해요)
     
-    
-    UPROPERTY(BlueprintAssignable, Category = "Health|Events") // 캐릭터 죽을 때 이벤트 방송 로직
+    UPROPERTY(BlueprintAssignable, Category = "Health|Events")
     FOnDiedDelegate OnDied;
 
-    UFUNCTION(BlueprintCallable, Category = "Weapon") 
+    // --- [무기 시스템] ---
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void SwitchWeapon(int32 SlotIndex);
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass);
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsSwapUnlocked() const { return bIsSwapUnlocked; }
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
     APrimaryWeapon *GetCurrentWeapon() const { return CurrentWeapon; }
 
-    float GetCurrentHealth() const { return CurrentHealth; } // GameMode가 세이브/로드 때 C++에서만 쓰는 접근자 (블루프린트 노출 필요해지면 그때 UFUNCTION 추가)
+    float GetCurrentHealth() const { return CurrentHealth; }
     void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
-    AActor *NearbyInteractable = nullptr; // 상호작용 가능한 근처 오브젝트 (IInteractableTarget 구현체), Radio 등이 오버랩으로 직접 세팅/해제
+    AActor *NearbyInteractable = nullptr;
 
 protected:
 	
@@ -103,6 +112,15 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     TObjectPtr<USkillComponent> SkillComponent;
     
+    // 무기 스왑 입력 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+    TObjectPtr<UInputAction> WeaponSlot1Action; // 1번 키
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+    TObjectPtr<UInputAction> WeaponSlot2Action; // 2번 키
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+    bool bIsSwapUnlocked = false; // 상호작용 전 스왑 비활성화
 
     void Move(const FInputActionValue &Value);   // Look이랑 Move 이쪽입니다.
     void Look(const FInputActionValue &Value);
@@ -114,6 +132,9 @@ protected:
     void UseSkill();
     void TryInteract();
 
+    void OnWeaponSlot1();
+    void OnWeaponSlot2();
+
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health") // 최대체력
@@ -124,13 +145,22 @@ protected:
 
     void Die();  // 체력 0되면 호출처리하는 함수
 
-    UPROPERTY(EditDefaultsOnly, Category = "Weapon") // 어떤 무기를 장착할지 (BP_PlayerCharacter Class Defaults에서 지정)
+    // 무기 슬롯
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+    TSubclassOf<APrimaryWeapon> DefaultSecondaryWeaponClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     TSubclassOf<APrimaryWeapon> WeaponClass;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon") // 실제로 스폰돼서 장착된 무기 인스턴스
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+    TArray<TObjectPtr<APrimaryWeapon>> WeaponSlots; // [0: 주무기, 1: 보조무기]
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     TObjectPtr<APrimaryWeapon> EquippedWeapon;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     APrimaryWeapon *CurrentWeapon;
+
+    int32 CurrentWeaponIndex = -1;
 
 };
