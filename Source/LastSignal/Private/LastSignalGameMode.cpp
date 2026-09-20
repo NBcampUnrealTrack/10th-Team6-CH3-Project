@@ -46,6 +46,10 @@ if (CurrentGameInstance) // 저장된 값이 있으면 KillCount/HP부터 복원
 
         if (CurrentPlayerCharacter)
             CurrentPlayerCharacter->SetCurrentHealth(CurrentGameInstance->SavedHP);  // 위에서 이미 캐스팅한 CurrentPlayerCharacter 재사용
+    
+        if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+            HUD->SetHP(CurrentGameInstance->SavedHP);
+
     }
 
     if (CurrentGameInstance && CurrentGameInstance->bTimeLimitStarted)

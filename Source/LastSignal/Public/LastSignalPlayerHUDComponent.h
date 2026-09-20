@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|HP")
 	void HealToFull();
 
+	UFUNCTION(BlueprintCallable, Category = "LastSignal|HP")
+    void SetHP(float NewHP);
+
 	// ================= 무기 / 탄약 (하단중앙, 우하단) =================
 	UPROPERTY(BlueprintReadOnly, Category = "LastSignal|Weapon")
 	FLastSignalWeaponHUDData CurrentWeapon;
