@@ -85,10 +85,13 @@ void APlayerCharacter::BeginPlay()
 
 void APlayerCharacter::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
+    Super::Tick(DeltaTime);
 
-    UpdateCameraCrouchInterp(DeltaTime); // 웅크리기 시 카메라 높이 연결
+    // 앉기 처리가 먼저 기본 카메라 높이를 설정한다.
+    UpdateCameraCrouchInterp(DeltaTime);
 
+    // 기본 높이 위에 작은 보행 흔들림을 더한다.
+    UpdateMovementBob(DeltaTime);
 }
 
 void APlayerCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) // 웅크리기 시작 카메라
@@ -276,4 +279,104 @@ void APlayerCharacter::UseSkill()
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerCharacter] SkillComponent가 유효하지 않습니다(nullptr)!"));
     }
+}
+
+
+
+// 보행 흔들림 처리 함수
+void APlayerCharacter::UpdateMovementBob(float DeltaTime)
+{
+    if (!FirstPersonCameraComponent || !IsLocallyControlled())
+    {
+        return;
+    }
+
+    // 장착 무기가 바뀌면 이전 무기를 복원하고 새 기준 위치를 저장한다.
+    APrimaryWeapon *Weapon = EquippedWeapon.Get();
+
+    if (BobWeapon.Get() != Weapon)
+    {
+        if (APrimaryWeapon *PreviousWeapon = BobWeapon.Get())
+        {
+            // 이미 떨어뜨린 무기의 월드 위치는 변경하지 않는다.
+            if (PreviousWeapon->GetRootComponent()->GetAttachParent() == FirstPersonCameraComponent)
+            {
+                PreviousWeapon->SetActorRelativeLocation(
+                    BobWeaponBaseLocation);
+            }
+        }
+
+        BobWeapon = Weapon;
+
+        if (IsValid(Weapon))
+        {
+            BobWeaponBaseLocation =
+                Weapon->GetRootComponent()->GetRelativeLocation();
+        }
+    }
+
+    // 입력 여부가 아닌 실제 수평 속도를 사용한다.
+    // 벽에 막혀 이동하지 못하면 흔들림도 멈춘다.
+    const float Speed = GetVelocity().Size2D();
+
+    const bool bMovingOnGround =
+        GetCharacterMovement()->IsMovingOnGround() && Speed > 5.0f && CurrentHealth > 0.0f;
+
+    const float SpeedRatio = FMath::Clamp(
+        Speed / FMath::Max(WalkSpeed, 1.0f),
+        0.0f,
+        1.5f);
+
+    const bool bAiming = IsValid(Weapon) && Weapon->IsAiming();
+
+    // 앉기와 조준 중에는 흔들림을 줄인다.
+    const float StanceScale =
+        (bIsCrouched ? 0.6f : 1.0f) * (bAiming ? 0.25f : 1.0f);
+
+    const float TargetWeight =
+        bMovingOnGround ? SpeedRatio * StanceScale : 0.0f;
+
+    // 출발, 정지, 점프 때 흔들림이 갑자기 바뀌지 않도록 한다.
+    MovementBobWeight = FMath::FInterpTo(
+        MovementBobWeight,
+        TargetWeight,
+        DeltaTime,
+        8.0f);
+
+    if (bMovingOnGround)
+    {
+        // 빠르게 이동할수록 보행 주기도 빨라진다.
+        const float CyclesPerSecond =
+            0.8f * FMath::Clamp(SpeedRatio, 0.5f, 1.5f);
+
+        MovementBobPhase = FMath::Fmod(
+            MovementBobPhase + DeltaTime * CyclesPerSecond * 2.0f * PI,
+            2.0f * PI);
+    }
+
+    const float SideWave = FMath::Sin(MovementBobPhase);
+    const float UpWave = FMath::Sin(MovementBobPhase * 2.0f);
+
+    // 총 메시 자체의 반동은 유지하고 무기 전체에 이동량을 더한다.
+    // 총 메시의 자식인 팔도 함께 움직인다.
+    if (IsValid(Weapon) && Weapon->GetRootComponent()->GetAttachParent() == FirstPersonCameraComponent)
+    {
+        const FVector WeaponOffset(
+            0.0f,
+            SideWave * 1.2f,
+            UpWave * 0.7f);
+
+        Weapon->SetActorRelativeLocation(
+            BobWeaponBaseLocation + WeaponOffset * MovementBobWeight * WeaponBobScale);
+    }
+
+    // 앞서 앉기 함수가 설정한 높이에만 더하므로 누적되지 않는다.
+    // 회전 흔들림 없이 상하 위치만 아주 약하게 움직인다.
+    FVector CameraLocation =
+        FirstPersonCameraComponent->GetRelativeLocation();
+
+    CameraLocation.Z +=
+        UpWave * CameraBobHeight * MovementBobWeight;
+
+    FirstPersonCameraComponent->SetRelativeLocation(CameraLocation);
 }

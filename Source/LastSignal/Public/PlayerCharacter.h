@@ -133,4 +133,25 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     APrimaryWeapon *CurrentWeapon;
 
+    // 실제 이동 속도에 따라 팔과 총, 카메라의 보행 흔들림을 갱신한다.
+    void UpdateMovementBob(float DeltaTime);
+
+    // 팔과 총의 이동 흔들림 배율. 0이면 비활성화한다.
+    UPROPERTY(EditAnywhere, Category = "Camera|MovementBob",
+              meta = (ClampMin = "0.0"))
+    float WeaponBobScale = 1.0f;
+
+    // 카메라의 상하 흔들림 크기(cm). 0이면 카메라만 고정된다.
+    UPROPERTY(EditAnywhere, Category = "Camera|MovementBob",
+              meta = (ClampMin = "0.0"))
+    float CameraBobHeight = 0.15f;
+
+    // 보행 주기와 부드럽게 보간되는 흔들림 강도.
+    float MovementBobPhase = 0.0f;
+    float MovementBobWeight = 0.0f;
+
+    // 무기 교체 시 새 무기의 원래 장착 위치를 다시 저장한다.
+    TWeakObjectPtr<APrimaryWeapon> BobWeapon;
+    FVector BobWeaponBaseLocation = FVector::ZeroVector;
+
 };
