@@ -3,6 +3,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
+#include "ZombieAICharacter.h" // 추가
 
 void UAnimNotify_ZombieHitCheck::Notify(USkeletalMeshComponent *MeshComp, UAnimSequenceBase *Animation, const FAnimNotifyEventReference &EventReference)
 {
@@ -23,7 +24,6 @@ void UAnimNotify_ZombieHitCheck::Notify(USkeletalMeshComponent *MeshComp, UAnimS
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(OwnerActor);
 
-    // 구체 Sweep Trace 진행
     bool bHit = World->SweepSingleByChannel(
         HitResult,
         Start,
@@ -40,7 +40,12 @@ void UAnimNotify_ZombieHitCheck::Notify(USkeletalMeshComponent *MeshComp, UAnimS
 
     if (bHit && HitResult.GetActor())
     {
-        // 타격된 플레이어에게 직접 데미지 전달
+        // 좀비끼리는 무시
+        if (HitResult.GetActor()->IsA<AZombieAICharacter>())
+        {
+            return;
+        }
+
         UGameplayStatics::ApplyDamage(
             HitResult.GetActor(),
             DamageAmount,

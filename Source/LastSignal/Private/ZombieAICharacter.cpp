@@ -147,6 +147,7 @@ void AZombieAICharacter::OnAttackHitCheck()
 
     if (bHit && HitResult.GetActor())
     {
+
         UGameplayStatics::ApplyDamage(
             HitResult.GetActor(),
             AttackDamage,
