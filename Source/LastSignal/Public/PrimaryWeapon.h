@@ -46,6 +46,10 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
         return Combat;
     }
 
+    // 무기 블루프린트와 애니메이션에서 조준 상태를 조회한다.
+    UFUNCTION(BlueprintPure, Category = "Weapon|Aim")
+    bool IsAiming() const;
+
   protected:
     virtual void BeginPlay() override;
 
@@ -76,6 +80,15 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
     // true: 재장전 시작 / false: 완료 또는 취소.
     UFUNCTION(BlueprintImplementableEvent, Category = "Weapon|Effects")
     void PlayReloadEffects(bool bReloading);
+
+    // 기본 조준 키는 우클릭이다.
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|Input")
+    FKey AimKey;
+
+    // 조준 상태가 바뀔 때만 호출한다.
+    // 총과 팔의 조준 전환 연출을 연결하는 지점이다.
+    UFUNCTION(BlueprintImplementableEvent, Category = "Weapon|Effects")
+    void PlayAimEffects(bool bAiming);
 
   private:
     void FirePressed();
@@ -109,4 +122,17 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
     TWeakObjectPtr<UEnhancedInputLocalPlayerSubsystem> InputSubsystem;
 
     bool bEquipped = false;
+
+    void AimPressed();
+    void AimReleased();
+
+    // 입력 상태와 재장전 상태를 바탕으로 실제 조준 상태를 갱신한다.
+    void RefreshAiming();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> AimAction;
+
+    // 우클릭 유지 여부와 실제 조준 상태를 구분한다.
+    // 재장전 중에도 우클릭 유지 여부는 기억한다.
+    bool bAimHeld = false;
 };
