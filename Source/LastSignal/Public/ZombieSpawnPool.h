@@ -122,6 +122,7 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     FVector GetRandomSpawnPoint() const;
     void CleanupDeadZombies();
     bool IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const;
+    bool IsPlayerInTrigger() const;
     void PrintDebugMessage(const FString &Message, FColor Color = FColor::Green) const;
 
     // UI
