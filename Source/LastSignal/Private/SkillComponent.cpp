@@ -22,7 +22,7 @@ void DisplaySkillStateDebug(ESkillState NewState)
         break;
 
     case ESkillState::Ready:
-        DebugMessage = TEXT("★ 스킬 준비 완료!★");
+        DebugMessage = TEXT("스킬 준비 완료~!");
         MessageColor = FColor::Green;
         break;
 
@@ -54,6 +54,20 @@ void USkillComponent::BeginPlay()
 
     if (UWorld *World = GetWorld())
     {
+        if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(World->GetGameInstance()))
+        {
+            CurrentSkillValue = GI->SavedSkillGauge;
+
+            if (CurrentSkillValue >= MaxSkillValue)
+            {
+                CurrentSkillValue = MaxSkillValue;
+                CurrentState = ESkillState::Ready;
+            }
+
+            OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
+            OnSkillStateChanged.Broadcast(CurrentState);
+        }
+
         if (ALastSignalGameState *GS = World->GetGameState<ALastSignalGameState>())
         {
             GS->OnKillCountChanged.AddDynamic(this, &USkillComponent::HandleZombieKilled);
@@ -97,25 +111,32 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 
 void USkillComponent::OnZombieKilled()
 {
-    // 좀비 사망 이벤트 바인딩 지점 Charging 상태일 때만 게이지 점수 합산
 
-    if (CurrentState != ESkillState::Charging) return;
+    if (CurrentState != ESkillState::Charging)
+        return;
 
     CurrentSkillValue = FMath::Min(CurrentSkillValue + KillBonusValue, MaxSkillValue);
+
+    if (UWorld *World = GetWorld())
+    {
+        if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(World->GetGameInstance()))
+        {
+            GI->SavedSkillGauge = CurrentSkillValue;
+        }
+    }
+
     OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
 
     if (CurrentSkillValue >= MaxSkillValue)
     {
         CurrentState = ESkillState::Ready;
         OnSkillStateChanged.Broadcast(CurrentState);
-        DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
+        DisplaySkillStateDebug(CurrentState);
     }
 }
 
 bool USkillComponent::CanActivateSkill() const
 {
-    // 플레이어 입력을 통해서 스킬 사용 조건 검사
-
     return CurrentState == ESkillState::Ready;
 }
 
@@ -151,6 +172,14 @@ void USkillComponent::ActivateSkill()
     CurrentState = ESkillState::Active;
     CurrentSkillValue = 0.0f;
 
+    if (UWorld *World = GetWorld())
+    {
+        if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(World->GetGameInstance()))
+        {
+            GI->SavedSkillGauge = CurrentSkillValue;
+        }
+    }
+
     OnSkillStateChanged.Broadcast(CurrentState);
     DisplaySkillStateDebug(CurrentState);
     OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
@@ -163,14 +192,13 @@ void USkillComponent::ActivateSkill()
 
 void USkillComponent::DeactivateSkill()
 {
-    // 지속시간 종료 또는 캐릭터 사망할시 스킬 상태 리셋
-    if (UWorld* World = GetWorld())
+    if (UWorld *World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(SkillDurationTimerHandle);
     }
 
     CurrentState = ESkillState::Charging;
     OnSkillStateChanged.Broadcast(CurrentState);
-    DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
+    DisplaySkillStateDebug(CurrentState);
 }
 

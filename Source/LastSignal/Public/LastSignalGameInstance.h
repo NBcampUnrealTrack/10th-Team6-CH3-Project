@@ -33,6 +33,9 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Save")
     TSubclassOf<APrimaryWeapon> SavedPrimaryWeaponClass = nullptr;
 
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    float SavedSkillGauge = 0.0f;
+
   private:
 	virtual void Init() override;
 };
