@@ -13,6 +13,12 @@ class LASTSIGNAL_API UBTService_CombatState : public UBTService_BlackboardBase
         UBTService_CombatState();
           UPROPERTY(EditAnywhere, Category = "AI")
           float CombatDistance = 2000.f;
+
+          UPROPERTY(EditAnywhere, Category = "AI")
+          float SearchDuration = 5.f; // 시야 놓친 후 수색 유지 시간
         protected:
         virtual void TickNode(UBehaviorTreeComponent &OwnerComp, uint8 *NodeMemory, float DeltaSeconds) override;
+
+        private:
+        float LastSeenTime = 0.f;
 };
