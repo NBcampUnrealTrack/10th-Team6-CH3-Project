@@ -19,7 +19,12 @@
 
 APrimaryWeapon::APrimaryWeapon()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    // 레티클 목표점을 매 프레임 갱신한다.
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
+
+    // 일반적인 애니메이션·반동 갱신 이후에 머즐 위치를 읽는다.
+    PrimaryActorTick.TickGroup = TG_PostUpdateWork;
 
     WeaponRoot = CreateDefaultSubobject<USceneComponent>(
         TEXT("WeaponRoot"));
@@ -43,6 +48,7 @@ APrimaryWeapon::APrimaryWeapon()
 
     FireKey = EKeys::LeftMouseButton;
     ReloadKey = EKeys::R;
+    AimKey = EKeys::RightMouseButton;
 }
 
 void APrimaryWeapon::BeginPlay()
@@ -55,10 +61,13 @@ void APrimaryWeapon::BeginPlay()
 
     ReloadAction = NewObject<UInputAction>(this);
     ReloadAction->ValueType = EInputActionValueType::Boolean;
+    AimAction = NewObject<UInputAction>(this);
+    AimAction->ValueType = EInputActionValueType::Boolean;
 
     WeaponMapping = NewObject<UInputMappingContext>(this);
     WeaponMapping->MapKey(FireAction, FireKey);
     WeaponMapping->MapKey(ReloadAction, ReloadKey);
+    WeaponMapping->MapKey(AimAction, AimKey);
 
     // Started는 누르는 순간, Completed는 놓는 순간이다.
     WeaponInput->BindAction(
@@ -76,6 +85,19 @@ void APrimaryWeapon::BeginPlay()
     WeaponInput->BindAction(
         ReloadAction, ETriggerEvent::Started,
         this, &APrimaryWeapon::ReloadPressed);
+
+    // 우클릭을 누르면 조준하고, 놓거나 입력이 취소되면 해제한다.
+    WeaponInput->BindAction(
+        AimAction, ETriggerEvent::Started,
+        this, &APrimaryWeapon::AimPressed);
+
+    WeaponInput->BindAction(
+        AimAction, ETriggerEvent::Completed,
+        this, &APrimaryWeapon::AimReleased);
+
+    WeaponInput->BindAction(
+        AimAction, ETriggerEvent::Canceled,
+        this, &APrimaryWeapon::AimReleased);
 
     Combat->OnShot.AddDynamic(
         this, &APrimaryWeapon::HandleShot);
@@ -171,9 +193,12 @@ bool APrimaryWeapon::Equip(
 
 void APrimaryWeapon::Unequip()
 {
-    // 먼저 입력 상태를 차단한다.
+    // 장착 해제 시 조준 입력과 실제 조준 상태를 함께 정리한다.
     bEquipped = false;
+    bAimHeld = false;
+    RefreshAiming();
 
+    // 아래에는 기존 입력 해제 및 무기 비활성화 코드 유지.
     if (APlayerController *PC = EquippedController.Get())
     {
         PC->PopInputComponent(WeaponInput);
@@ -253,7 +278,13 @@ void APrimaryWeapon::HandleShot(
 
 void APrimaryWeapon::HandleReload(bool bReloading)
 {
+    // 재장전 연출을 먼저 갱신한다.
+    // 재장전 종료 시에는 해당 몽타주를 정리한 뒤 조준을 복구한다.
     PlayReloadEffects(bReloading);
+
+    // 재장전 시작 시 조준 해제.
+    // 완료 또는 취소 시 우클릭을 유지하고 있으면 다시 조준.
+    RefreshAiming();
 }
 
 // UI 추가
@@ -281,5 +312,48 @@ void APrimaryWeapon::HandleAmmoChanged(int32 CurrentAmmo, int32 ReserveAmmo)
         WeaponData.MagazineSize = Combat->Stats.MagazineSize;
 
         HUD->SetWeapon(WeaponData);
+    }
+}
+
+bool APrimaryWeapon::IsAiming() const
+{
+    return Combat && Combat->IsAiming();
+}
+
+void APrimaryWeapon::AimPressed()
+{
+    if (!bEquipped)
+    {
+        return;
+    }
+
+    bAimHeld = true;
+    RefreshAiming();
+}
+
+void APrimaryWeapon::AimReleased()
+{
+    bAimHeld = false;
+    RefreshAiming();
+}
+
+void APrimaryWeapon::RefreshAiming()
+{
+    if (!Combat)
+    {
+        return;
+    }
+
+    const bool bWasAiming = Combat->IsAiming();
+
+    // 재장전 중 조준 차단은 전투 컴포넌트에서 판단한다.
+    Combat->SetAiming(bEquipped && bAimHeld);
+
+    const bool bNowAiming = Combat->IsAiming();
+
+    // 같은 상태에서 전환 애니메이션이 반복 재생되지 않게 한다.
+    if (bWasAiming != bNowAiming)
+    {
+        PlayAimEffects(bNowAiming);
     }
 }

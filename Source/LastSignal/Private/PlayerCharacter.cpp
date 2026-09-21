@@ -1,36 +1,36 @@
 ﻿#include "PlayerCharacter.h"
+#include "AdrenalineSkill.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SceneComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/World.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "InputMappingContext.h"
-#include "InputAction.h"
-#include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Engine/EngineTypes.h"
+#include "GameFramework/PlayerController.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "InteractableTarget.h"
 #include "PrimaryWeapon.h"
 #include "SkillComponent.h"
-#include "AdrenalineSkill.h"
-#include "Engine/World.h"
-#include "InteractableTarget.h"
 
 // UI 추가
-#include "LastSignalPlayerController.h"      
-#include "LastSignalPlayerHUDComponent.h"    
-
+#include "LastSignalPlayerController.h"
+#include "LastSignalPlayerHUDComponent.h"
 
 APlayerCharacter::APlayerCharacter()
 {
-	PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = true;
 
-	bUseControllerRotationPitch = false;  // 1인칭이라 캐릭터 몸통 회전 x 카메라만 회전시키려고 만들었숩니다.
+    bUseControllerRotationPitch = false; // 1인칭이라 캐릭터 몸통 회전 x 카메라만 회전시키려고 만들었숩니다.
     bUseControllerRotationYaw = false;
     bUseControllerRotationRoll = false;
 
-	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+    FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
     FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
-    FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // 눈높이 임의 설정
-    FirstPersonCameraComponent->bUsePawnControlRotation = true;                 // 마우스로 카메라 상하좌우 회전
+    FirstPersonCameraComponent->SetRelativeLocation(FVector(-11.765135f, 11.176215f, 13.473909f)); // 눈높이 임의 설정
+    FirstPersonCameraComponent->bUsePawnControlRotation = true;                                    // 마우스로 카메라 상하좌우 회전
 
     GetCharacterMovement()->NavAgentProps.bCanCrouch = true; // 웅크리시 설정
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
@@ -43,6 +43,10 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    // 설정된 카메라 높이를 웅크리기 보정의 기준으로 저장한다.
+    DefaultCameraRelativeZ =
+        FirstPersonCameraComponent->GetRelativeLocation().Z;
 
     if (APlayerController *PlayerController = Cast<APlayerController>(GetController()))
     {
@@ -76,6 +80,7 @@ void APlayerCharacter::BeginPlay()
         {
             WeaponSlots[1] = SpawnedSecondary;
             SwitchWeapon(1); // 시작 시 보조무기 장착
+            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Secondary weapon [%s] spawned and equipped in slot 1."), *SpawnedSecondary->GetName());
         }
     }
     else if (WeaponClass) // 기존 WeaponClass 호환
@@ -84,7 +89,12 @@ void APlayerCharacter::BeginPlay()
         if (EquippedWeapon)
         {
             EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None);
+            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Weapon [%s] successfully equipped."), *EquippedWeapon->GetName());
         }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
     }
 
     bIsSwapUnlocked = false; // 상호작용 전 스왑 잠금
@@ -113,6 +123,7 @@ void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponC
         WeaponSlots[0] = NewPrimary;
         bIsSwapUnlocked = true; // 스왑 기능 해금
         SwitchWeapon(0); // 주무기 장착
+        UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Primary weapon [%s] spawned and equipped in slot 0."), *NewPrimary->GetName());
     }
 }
 
@@ -154,14 +165,19 @@ void APlayerCharacter::SwitchWeapon(int32 SlotIndex)
     CurrentWeapon = TargetWeapon;
 
     EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None);
+    UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Switched to weapon [%s] in slot %d."), *EquippedWeapon->GetName(), SlotIndex);
 }
+
 
 void APlayerCharacter::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
+    Super::Tick(DeltaTime);
 
-    UpdateCameraCrouchInterp(DeltaTime); // 웅크리기 시 카메라 높이 연결
+    // 앉기 처리가 먼저 기본 카메라 높이를 설정한다.
+    UpdateCameraCrouchInterp(DeltaTime);
 
+    // 기본 높이 위에 작은 보행 흔들림을 더한다.
+    UpdateMovementBob(DeltaTime);
 }
 
 void APlayerCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) // 웅크리기 시작 카메라
@@ -192,11 +208,10 @@ void APlayerCharacter::UpdateCameraCrouchInterp(float DeltaTime) // 웅크리기
     FirstPersonCameraComponent->SetRelativeLocation(FVector(CurrentRelLoc.X, CurrentRelLoc.Y, DefaultCameraRelativeZ + CameraCrouchOffsetZ));
 }
 
-
-void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void APlayerCharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-    
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
     if (UEnhancedInputComponent *EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
         EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerCharacter::Move);
@@ -204,7 +219,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
         EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-        if (SprintAction) // 달리기: 누르고 있으면 달리기, 떼거거나 cancleed 되면 일단 걷기로 복귀 
+        if (SprintAction) // 달리기: 누르고 있으면 달리기, 떼거거나 cancleed 되면 일단 걷기로 복귀
         {
             EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this, &APlayerCharacter::StartSprint);
             EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &APlayerCharacter::StopSprint);
@@ -227,7 +242,6 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &APlayerCharacter::TryInteract);
         }
-
         if (WeaponSlot1Action)
         {
             EnhancedInput->BindAction(WeaponSlot1Action, ETriggerEvent::Started, this, &APlayerCharacter::OnWeaponSlot1);
@@ -242,6 +256,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             EnhancedInput->BindAction(PauseAction, ETriggerEvent::Started, this, &APlayerCharacter::TogglePauseMenu);
         }
+
     }
 }
 
@@ -278,6 +293,8 @@ void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 
 void APlayerCharacter::StartSprint()
 {
+    // 달리기 입력 상태를 흔들림에도 전달한다.
+    bSprintBobRequested = true;
     if (bIsCrouched)
     {
         UnCrouch(); // 웅크린 상태에서 달리기를 누르면 일어남
@@ -287,6 +304,7 @@ void APlayerCharacter::StartSprint()
 
 void APlayerCharacter::StopSprint()
 {
+    bSprintBobRequested = false;
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
@@ -300,7 +318,6 @@ void APlayerCharacter::StopCrouch()
 {
     UnCrouch(); // ACharacter 내장 일어서기
 }
-
 
 void APlayerCharacter::Look(const FInputActionValue &Value) // Look 함수
 {
@@ -356,7 +373,6 @@ void APlayerCharacter::Die() // 죽음 처리 (지금은 테스트 위해서 최
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PLAYER DIED"));
     }
 
-    
     OnDied.Broadcast(); // 구독해둔 다른 클래스들(나중에 GameMode 등)에게 "죽었다"고 방송 (델리게이트라서 있는거에요)
 }
 
@@ -373,4 +389,169 @@ void APlayerCharacter::UseSkill()
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerCharacter] SkillComponent가 유효하지 않습니다(nullptr)!"));
     }
+}
+
+// 점프 키를 눌렀을 때가 아니라 실제 점프가 성공했을 때 실행한다.
+void APlayerCharacter::OnJumped_Implementation()
+{
+    Super::OnJumped_Implementation();
+
+    if (IsLocallyControlled() && CurrentHealth > 0.0f)
+    {
+        JumpBobElapsed = 0.0f;
+        LandBobElapsed = -1.0f;
+    }
+}
+
+void APlayerCharacter::Landed(const FHitResult &Hit)
+{
+    // Landed에서는 아직 착지 전 수직 속도를 읽을 수 있다.
+    const float ImpactSpeed = FMath::Max(0.0f, -GetVelocity().Z);
+    Super::Landed(Hit);
+
+    if (IsLocallyControlled() && CurrentHealth > 0.0f)
+    {
+        // 작은 턱에서 생기는 아주 약한 낙하는 무시한다.
+        LandBobStrength = ImpactSpeed >= 100.0f
+                              ? FMath::Clamp(ImpactSpeed / FMath::Max(LandReferenceSpeed, 1.0f),
+                                             0.0f, FMath::Max(LandMaxScale, 0.0f))
+                              : 0.0f;
+
+        LandBobElapsed = LandBobStrength > 0.0f ? 0.0f : -1.0f;
+        JumpBobElapsed = -1.0f;
+    }
+}
+
+// 보행은 반복 파형, 점프와 착지는 한 번 이동한 뒤 복귀하는 파형으로 합성한다.
+void APlayerCharacter::UpdateMovementBob(float DeltaTime)
+{
+    if (!FirstPersonCameraComponent || !IsLocallyControlled())
+    {
+        return;
+    }
+
+    APrimaryWeapon *Weapon = EquippedWeapon.Get();
+    const bool bAttachedWeapon = IsValid(Weapon) && Weapon->GetRootComponent() && Weapon->GetRootComponent()->GetAttachParent() == FirstPersonCameraComponent;
+
+    // 무기 메시 반동과 겹치지 않도록 장착 액터의 상대 위치만 변경한다.
+    APrimaryWeapon *ActiveBobWeapon = bAttachedWeapon ? Weapon : nullptr;
+    if (BobWeapon.Get() != ActiveBobWeapon)
+    {
+        if (APrimaryWeapon *PreviousWeapon = BobWeapon.Get())
+        {
+            if (PreviousWeapon->GetRootComponent() && PreviousWeapon->GetRootComponent()->GetAttachParent() == FirstPersonCameraComponent)
+            {
+                PreviousWeapon->SetActorRelativeLocation(BobWeaponBaseLocation);
+            }
+        }
+
+        BobWeapon = ActiveBobWeapon;
+        if (ActiveBobWeapon)
+        {
+            BobWeaponBaseLocation =
+                ActiveBobWeapon->GetRootComponent()->GetRelativeLocation();
+        }
+    }
+
+    const float Speed = GetVelocity().Size2D();
+    const bool bAlive = CurrentHealth > 0.0f;
+    const bool bMovingOnGround = bAlive && GetCharacterMovement()->IsMovingOnGround() && Speed > 5.0f;
+    const bool bSprint = bSprintBobRequested && !bIsCrouched && bAlive;
+    const float InterpSpeed = FMath::Max(BobBlendSpeed, 0.01f);
+
+    // 걷기/달리기 전환 시 강도와 주파수를 함께 부드럽게 변경한다.
+    SprintBobBlend = FMath::FInterpTo(SprintBobBlend,
+                                      bSprint ? 1.0f : 0.0f, DeltaTime, InterpSpeed);
+
+    const float ReferenceSpeed = FMath::Max(
+        FMath::Lerp(WalkSpeed, SprintSpeed, SprintBobBlend), 1.0f);
+    const float SpeedRatio = FMath::Clamp(Speed / ReferenceSpeed, 0.0f, 1.0f);
+
+    MovementBobWeight = FMath::FInterpTo(MovementBobWeight,
+                                         bMovingOnGround ? SpeedRatio : 0.0f, DeltaTime, InterpSpeed);
+
+    const bool bAiming = IsValid(Weapon) && Weapon->IsAiming();
+    const float StanceTarget = (bAiming ? AimBobScale : 1.0f) * (bIsCrouched ? CrouchBobScale : 1.0f);
+    SmoothedBobStance = FMath::FInterpTo(SmoothedBobStance,
+                                         StanceTarget, DeltaTime, InterpSpeed);
+
+    const float WeaponFrequency = FMath::Lerp(
+        WalkWeaponBobFrequency, SprintWeaponBobFrequency, SprintBobBlend);
+    const float CameraFrequency = FMath::Lerp(
+        WalkCameraBobFrequency, SprintCameraBobFrequency, SprintBobBlend);
+
+    if (bMovingOnGround)
+    {
+        // 입력만 유지하고 벽에 막힌 상태에서는 주기가 진행되지 않는다.
+        const float PhaseStep = DeltaTime * 2.0f * PI * FMath::Clamp(SpeedRatio, 0.5f, 1.0f);
+        MovementBobPhase = FMath::Fmod(MovementBobPhase + PhaseStep * FMath::Max(WeaponFrequency, 0.01f), 2.0f * PI);
+        CameraBobPhase = FMath::Fmod(CameraBobPhase + PhaseStep * FMath::Max(CameraFrequency, 0.01f), 2.0f * PI);
+    }
+
+    const FVector WeaponAmplitude = FMath::Lerp(
+        WalkWeaponBobAmplitude * FMath::Max(WeaponBobScale, 0.0f),
+        SprintWeaponBobAmplitude * FMath::Max(SprintWeaponBobScale, 0.0f),
+        SprintBobBlend);
+    const float CameraHeight = FMath::Lerp(
+        CameraBobHeight, SprintCameraBobHeight, SprintBobBlend);
+
+    const float SideWave = FMath::Sin(MovementBobPhase);
+    const float UpWave = FMath::Sin(MovementBobPhase * 2.0f);
+    FVector WeaponOffset = FVector(
+                               UpWave * WeaponAmplitude.X,
+                               SideWave * WeaponAmplitude.Y,
+                               UpWave * WeaponAmplitude.Z) *
+                           MovementBobWeight;
+    float CameraOffsetZ = FMath::Sin(CameraBobPhase) * CameraHeight * MovementBobWeight;
+
+    if (!bAlive)
+    {
+        JumpBobElapsed = -1.0f;
+        LandBobElapsed = -1.0f;
+    }
+
+    // 카메라와 팔의 지속시간이 달라도 각각 원위치까지 복귀시킨다.
+    const auto AdvancePulse = [DeltaTime](float &Elapsed, float MaxDuration)
+    {
+        if (Elapsed >= 0.0f)
+        {
+            Elapsed += DeltaTime;
+            if (Elapsed >= FMath::Max(MaxDuration, 0.01f))
+            {
+                Elapsed = -1.0f;
+            }
+        }
+    };
+
+    // 시작과 끝에서 속도가 0이 되는 부드러운 일회성 눌림을 만든다.
+    const auto Pulse = [](float Elapsed, float Duration)
+    {
+        const float SafeDuration = FMath::Max(Duration, 0.01f);
+        if (Elapsed < 0.0f || Elapsed >= SafeDuration)
+        {
+            return 0.0f;
+        }
+        const float Wave = FMath::Sin(PI * Elapsed / SafeDuration);
+        return Wave * Wave;
+    };
+
+    AdvancePulse(JumpBobElapsed, FMath::Max(JumpWeaponDuration, JumpCameraDuration));
+    AdvancePulse(LandBobElapsed, FMath::Max(LandWeaponDuration, LandCameraDuration));
+
+    WeaponOffset += JumpWeaponOffset * Pulse(JumpBobElapsed, JumpWeaponDuration);
+    WeaponOffset += LandWeaponOffset * Pulse(LandBobElapsed, LandWeaponDuration) * LandBobStrength;
+    CameraOffsetZ += JumpCameraOffsetZ * Pulse(JumpBobElapsed, JumpCameraDuration);
+    CameraOffsetZ += LandCameraOffsetZ * Pulse(LandBobElapsed, LandCameraDuration) * LandBobStrength;
+
+    if (ActiveBobWeapon)
+    {
+        ActiveBobWeapon->SetActorRelativeLocation(
+            BobWeaponBaseLocation + WeaponOffset * SmoothedBobStance);
+    }
+
+    // 매 프레임 기준 높이부터 계산하므로 흔들림이 누적되지 않는다.
+    // 컨트롤러 회전을 건드리지 않아 카메라 반동과 별도로 동작한다.
+    FVector CameraLocation = FirstPersonCameraComponent->GetRelativeLocation();
+    CameraLocation.Z = DefaultCameraRelativeZ + CameraCrouchOffsetZ + CameraOffsetZ * SmoothedBobStance;
+    FirstPersonCameraComponent->SetRelativeLocation(CameraLocation);
 }

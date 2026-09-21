@@ -21,7 +21,7 @@ AM4A1::AM4A1()
     S.TacReloadTime = 1.8f;
     S.bEnableChamberRound = true;
 
-    S.PitchKick = FVector2D(-1.2f, -1.0f);
+    S.PitchKick = FVector2D(-2.0f, -1.5f);
     S.YawKick = FVector2D(-0.4f, 0.4f);
 
     S.CameraKickSpeed = 25.0f;
