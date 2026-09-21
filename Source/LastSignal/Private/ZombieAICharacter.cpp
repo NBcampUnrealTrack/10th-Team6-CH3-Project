@@ -7,6 +7,7 @@
 #include "LastSignalGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
+#include "Components/SphereComponent.h"
 
 // UI 추가
 #include "LastSignalPlayerController.h"
@@ -25,6 +26,14 @@ AZombieAICharacter::AZombieAICharacter()
         Movement->bOrientRotationToMovement = true;
         Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
     }
+
+    HeadHitbox = CreateDefaultSubobject<USphereComponent>(TEXT("HeadHitbox"));
+    HeadHitbox->SetupAttachment(GetMesh(), TEXT("head")); // 실제 소켓/본 이름으로 교체
+    HeadHitbox->SetSphereRadius(12.f);
+    HeadHitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    HeadHitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+    HeadHitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block); // 트레이스가 ECC_Visibility라서 이거 필수
+
 }
 
 void AZombieAICharacter::BeginPlay()
