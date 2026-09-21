@@ -1,4 +1,5 @@
 ﻿#include "PlayerCharacter.h"
+#include "LastSignalGameInstance.h"
 #include "AdrenalineSkill.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -69,13 +70,13 @@ void APlayerCharacter::BeginPlay()
     WeaponSlots.Init(nullptr, 2);
 
     // 시작 시 보조무기 스폰 및 장착
-    if (DefaultSecondaryWeaponClass)
+    if (WeaponClass)
     {
         FActorSpawnParameters SpawnParams;
         SpawnParams.Owner = this;
         SpawnParams.Instigator = this;
 
-        APrimaryWeapon *SpawnedSecondary = GetWorld()->SpawnActor<APrimaryWeapon>(DefaultSecondaryWeaponClass, SpawnParams);
+        APrimaryWeapon *SpawnedSecondary = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass, SpawnParams);
         if (SpawnedSecondary)
         {
             WeaponSlots[1] = SpawnedSecondary;
@@ -83,21 +84,27 @@ void APlayerCharacter::BeginPlay()
             UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Secondary weapon [%s] spawned and equipped in slot 1."), *SpawnedSecondary->GetName());
         }
     }
-    else if (WeaponClass) // 기존 WeaponClass 호환
-    {
-        EquippedWeapon = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass);
-        if (EquippedWeapon)
-        {
-            EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None);
-            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Weapon [%s] successfully equipped."), *EquippedWeapon->GetName());
-        }
-    }
+ 
     else
     {
         UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
     }
 
-    bIsSwapUnlocked = false; // 상호작용 전 스왑 잠금
+    if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance()))
+    {
+        if (GI->bSavedIsSwapUnlocked && GI->SavedPrimaryWeaponClass)
+        {
+            EquipPrimaryWeapon(GI->SavedPrimaryWeaponClass);
+        }
+        else
+        {
+            bIsSwapUnlocked = false; // 상호작용 전 스왑 잠금
+        }
+    }
+    else
+    {
+        bIsSwapUnlocked = false;
+    }
 }
 	
 void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass)
@@ -124,6 +131,12 @@ void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponC
         bIsSwapUnlocked = true; // 스왑 기능 해금
         SwitchWeapon(0); // 주무기 장착
         UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Primary weapon [%s] spawned and equipped in slot 0."), *NewPrimary->GetName());
+       
+        if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance()))
+        {
+            GI->bSavedIsSwapUnlocked = true;
+            GI->SavedPrimaryWeaponClass = NewWeaponClass;
+        }
     }
 }
 

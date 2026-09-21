@@ -126,6 +126,10 @@ struct FWeaponStats
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
     float SpreadRecoverySpeed = 8.0f; // 사격 중단 시 복구 속도
+
+    // 무기 스왑시 발사 불가능한 시간
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
+    float SwapDelay = 0.5f;
 };
 
 // 명중 여부와 결과를 발사 연출에 전달한다.
@@ -182,6 +186,9 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool IsReloading() const { return bReloading; }
 
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsSwapping() const { return bSwapping; }
+
     UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
     FWeaponShotEvent OnShot;
 
@@ -229,6 +236,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     void UpdateRecoil(float DeltaTime);
     void ResetRecoil();
     void NotifyAmmo();
+    void EndSwap();
     // 실제 적용 중인 조준 상태.
     bool bAiming = false;
 
@@ -237,6 +245,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
     FTimerHandle FireTimer;
     FTimerHandle ReloadTimer;
+    FTimerHandle SwapTimer;
 
     int32 CurrentAmmo = 0;
     int32 ReserveAmmo = 0;
@@ -244,6 +253,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     bool bEquipped = false;
     bool bTriggerHeld = false;
     bool bReloading = false;
+    bool bSwapping = false;
 
     double NextFireTime = 0.0;
 

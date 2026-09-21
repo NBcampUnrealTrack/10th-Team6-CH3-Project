@@ -63,6 +63,18 @@ void UWeaponCombatComponent::ActivateWeapon(
     bEquipped = true;
     SetComponentTickEnabled(true);
     NotifyAmmo();
+
+    // 무기 스왑 딜레이
+    bSwapping = true;
+    if (UWorld *World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            SwapTimer,
+            this,
+            &UWeaponCombatComponent::EndSwap,
+            FMath::Max(0.01f, Stats.SwapDelay),
+            false);
+    }
 }
 
 void UWeaponCombatComponent::DeactivateWeapon()
@@ -70,12 +82,14 @@ void UWeaponCombatComponent::DeactivateWeapon()
     bAiming = false;
     bEquipped = false;
     bTriggerHeld = false;
+    bSwapping = false;
     CurrentSpreadHeat = 0.0f; // 누적 탄퍼짐 초기화
 
     if (UWorld *World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(FireTimer);
         World->GetTimerManager().ClearTimer(ReloadTimer);
+        World->GetTimerManager().ClearTimer(SwapTimer);
     }
 
     if (bReloading)
@@ -97,7 +111,7 @@ void UWeaponCombatComponent::DeactivateWeapon()
 
 void UWeaponCombatComponent::StartFire()
 {
-    if (!bEquipped || bTriggerHeld)
+    if (!bEquipped || bTriggerHeld || bSwapping)
     {
         return;
     }
@@ -442,7 +456,7 @@ void UWeaponCombatComponent::StartReload()
     const bool bIsTactical = (CurrentAmmo > 0);
     const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
 
-    if (!bEquipped || bReloading ||
+    if (!bEquipped || bReloading || bSwapping ||
         CurrentAmmo >= MaxCapacity || ReserveAmmo <= 0)
     {
         return;
@@ -462,6 +476,11 @@ void UWeaponCombatComponent::StartReload()
         false);
 
     OnReloadChanged.Broadcast(true);
+}
+
+void UWeaponCombatComponent::EndSwap()
+{
+    bSwapping = false;
 }
 
 void UWeaponCombatComponent::ReloadStep()
