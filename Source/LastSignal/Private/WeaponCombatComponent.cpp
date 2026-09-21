@@ -7,6 +7,7 @@
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/SphereComponent.h"
 
 UWeaponCombatComponent::UWeaponCombatComponent()
 {
@@ -132,7 +133,6 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
         return;
     }
 
-    // 1. 직접 맞은 액터나 그 액터의 Owner(주인)를 좀비 클래스로 캐스팅 시도
     AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(HitActor);
     if (!Zombie && HitActor->GetOwner())
     {
@@ -143,15 +143,24 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
     {
         AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
 
-        // 좀비를 정상 인식했을 때 데미지 전달
+        float FinalDamage = FMath::Max(0.0f, Stats.Damage);
+
+        // 헤드샷 판정: 맞은 컴포넌트가 HeadHitbox인지 확인
+        const bool bHeadshot = (HitResult.GetComponent() == Zombie->GetHeadHitbox());
+        if (bHeadshot)
+        {
+            FinalDamage *= Zombie->HeadshotMultiplier;
+        }
+
         UGameplayStatics::ApplyDamage(
             Zombie,
-            FMath::Max(0.0f, Stats.Damage),
+            FinalDamage,
             InstigatorController,
             GetOwner(),
             UDamageType::StaticClass());
 
-        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Applied Damage."));
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Headshot: %s / Damage: %f"),
+               bHeadshot ? TEXT("YES") : TEXT("NO"), FinalDamage);
     }
     else
     {

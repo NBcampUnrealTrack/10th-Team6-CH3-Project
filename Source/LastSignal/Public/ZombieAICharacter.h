@@ -61,6 +61,15 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     UPROPERTY(EditAnywhere, Category = "AI")
     TMap<EZombieType, USkeletalMesh *> ZombieMeshes;
 
+    // 헤드샷
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    class USphereComponent *HeadHitbox;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Combat")
+    float HeadshotMultiplier = 2.0f;
+
+    FORCEINLINE USphereComponent *GetHeadHitbox() const { return HeadHitbox; }
+
   protected:
     virtual void BeginPlay() override;
 
@@ -93,6 +102,8 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     // 공격 중 상태 플래그
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
     bool bIsAttacking = false;
+
+    
 
   public:
     virtual void Tick(float DeltaTime) override;
