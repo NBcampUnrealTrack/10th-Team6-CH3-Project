@@ -26,17 +26,26 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
 
     virtual float TakeDamage(float DamageAmount, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) override; // 데미지 받는 함수 ( 캐릭터가 데미지 받으면 자동 호출해요)
-
-    UPROPERTY(BlueprintAssignable, Category = "Health|Events") // 캐릭터 죽을 때 이벤트 방송 로직
+    UPROPERTY(BlueprintAssignable, Category = "Health|Events")
     FOnDiedDelegate OnDied;
+
+    // --- [무기 시스템] ---
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void SwitchWeapon(int32 SlotIndex);
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass);
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsSwapUnlocked() const { return bIsSwapUnlocked; }
 
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     APrimaryWeapon *GetCurrentWeapon() const { return CurrentWeapon; }
 
-    float GetCurrentHealth() const { return CurrentHealth; } // GameMode가 세이브/로드 때 C++에서만 쓰는 접근자 (블루프린트 노출 필요해지면 그때 UFUNCTION 추가)
+    float GetCurrentHealth() const { return CurrentHealth; }
     void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
-    AActor *NearbyInteractable = nullptr; // 상호작용 가능한 근처 오브젝트 (IInteractableTarget 구현체), Radio 등이 오버랩으로 직접 세팅/해제
+    AActor *NearbyInteractable = nullptr;
 
   protected:
     virtual void BeginPlay() override;
@@ -96,9 +105,23 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> InteractAction;
 
+    // 일시정지 메뉴 입력 액션
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> PauseAction;
+
     // 스킬 컴포넌트
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     TObjectPtr<USkillComponent> SkillComponent;
+    // 무기 스왑 입력 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+    TObjectPtr<UInputAction> WeaponSlot1Action; // 1번 키
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+    TObjectPtr<UInputAction> WeaponSlot2Action; // 2번 키
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+    bool bIsSwapUnlocked = false; // 상호작용 전 스왑 비활성화
+
 
     void Move(const FInputActionValue &Value); // Look이랑 Move 이쪽입니다.
     void Look(const FInputActionValue &Value);
@@ -109,6 +132,10 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     void StopCrouch();
     void UseSkill();
     void TryInteract();
+    void TogglePauseMenu();
+
+    void OnWeaponSlot1();
+    void OnWeaponSlot2();
 
     // 여기부터 캐릭터 체력 관련 UPROPERTY랑 함수
 
@@ -120,14 +147,20 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     void Die(); // 체력 0되면 호출처리하는 함수
 
-    UPROPERTY(EditDefaultsOnly, Category = "Weapon") // 어떤 무기를 장착할지 (BP_PlayerCharacter Class Defaults에서 지정)
+    // 무기 슬롯
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     TSubclassOf<APrimaryWeapon> WeaponClass;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon") // 실제로 스폰돼서 장착된 무기 인스턴스
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+    TArray<TObjectPtr<APrimaryWeapon>> WeaponSlots; // [0: 주무기, 1: 보조무기]
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     TObjectPtr<APrimaryWeapon> EquippedWeapon;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     APrimaryWeapon *CurrentWeapon;
+
+    int32 CurrentWeaponIndex = -1;
 
     // 기본 걷기와 달리기의 흔들림은 실제 지상 이동 속도로 조절한다.
     void UpdateMovementBob(float DeltaTime);
@@ -139,13 +172,10 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
               meta = (ClampMin = "0.0", DisplayName = "Walk Weapon Scale (걷기 팔 배율)"))
     float WeaponBobScale = 1.0f;
 
-    // 무기 액터의 로컬 축: X 전후, Y 좌우, Z 상하. 단위는 cm.
     UPROPERTY(EditAnywhere, Category = "Camera|MovementBob|Walk",
               meta = (DisplayName = "Walk Weapon Amplitude (걷기 팔 이동폭)"))
     FVector WalkWeaponBobAmplitude = FVector(0.0f, 1.2f, 0.7f);
 
-    // 로컬 cpp에서 사용자가 맞춘 0.8 주기를 그대로 기본값으로 사용한다.
-    // 주파수 단위는 Hz이며, 팔 상하 움직임은 좌우 주기의 두 배다.
     UPROPERTY(EditAnywhere, Category = "Camera|MovementBob|Walk",
               meta = (ClampMin = "0.01", DisplayName = "Walk Weapon Frequency (걷기 팔 주파수)"))
     float WalkWeaponBobFrequency = 0.8f;
@@ -154,7 +184,6 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
               meta = (ClampMin = "0.0", DisplayName = "Walk Camera Height (걷기 카메라 높이)"))
     float CameraBobHeight = 0.15f;
 
-    // 기존 카메라는 0.8 주기의 두 배로 상하 이동하므로 기본값은 1.6Hz다.
     UPROPERTY(EditAnywhere, Category = "Camera|MovementBob|Walk",
               meta = (ClampMin = "0.01", DisplayName = "Walk Camera Frequency (걷기 카메라 주파수)"))
     float WalkCameraBobFrequency = 1.6f;
@@ -247,4 +276,5 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     TWeakObjectPtr<APrimaryWeapon> BobWeapon;
     FVector BobWeaponBaseLocation = FVector::ZeroVector;
+
 };

@@ -9,17 +9,31 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "TimerManager.h"
 
+// UI 관련 헤더
+#include "LastSignalPlayerController.h"      
+#include "LastSignalPlayerHUDComponent.h" 
+
 AZombieSpawnPool::AZombieSpawnPool()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
-    RootComponent = TriggerBox;
+    // 공통 기준점 루트 컴포넌트 생성
+    DefaultRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultRootComponent"));
+    SetRootComponent(DefaultRootComponent);
 
+    // 트리거 박스 (오직 플레이어 진입/퇴장 오버랩 감지용)
+    TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
+    TriggerBox->SetupAttachment(RootComponent);
     TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     TriggerBox->SetCollisionObjectType(ECC_WorldDynamic);
     TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
     TriggerBox->SetGenerateOverlapEvents(true);
+
+    // 스폰 박스 (오직 좀비 스폰 위치 영역 계산용 - 콜리전 차단)
+    SpawnBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnBox"));
+    SpawnBox->SetupAttachment(RootComponent);
+    SpawnBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    SpawnBox->SetGenerateOverlapEvents(false);
 }
 
 void AZombieSpawnPool::BeginPlay()
@@ -35,7 +49,7 @@ void AZombieSpawnPool::BeginPlay()
         return;
     }
 
-    // 오버랩 이벤트
+    // 트리거 박스 오버랩 이벤트 바인딩
     if (TriggerBox)
     {
         TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AZombieSpawnPool::OnOverlapBegin);
@@ -119,6 +133,8 @@ void AZombieSpawnPool::LoadMapSpecificData()
         PeriodicSpawnCount = FoundData->PeriodicSpawnCount;
         SpawnInterval = FoundData->SpawnInterval;
         MaxZombieCount = FoundData->MaxZombieCount;
+        // UI 추가
+        MissionObjectiveText = FoundData->MissionObjectiveText;
 
         bIsActivePool = true;
     }
@@ -137,7 +153,7 @@ bool AZombieSpawnPool::IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const
     if (!Pawn)
         return false;
 
-    if (Pawn->IsPlayerControlled() || Pawn->IsLocallyControlled())
+    if (Pawn->IsPlayerControlled())
     {
         OutPlayerPawn = Pawn;
         return true;
@@ -171,23 +187,10 @@ void AZombieSpawnPool::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor 
         return;
 
     APawn *PlayerPawn = nullptr;
+
     if (IsPlayerActor(OtherActor, PlayerPawn))
     {
-        TArray<AActor *> OverlappingActors;
-        TriggerBox->GetOverlappingActors(OverlappingActors);
-
-        bool bAnyPlayerLeft = false;
-        for (AActor *Actor : OverlappingActors)
-        {
-            APawn *DummyPawn = nullptr;
-            if (IsPlayerActor(Actor, DummyPawn))
-            {
-                bAnyPlayerLeft = true;
-                break;
-            }
-        }
-
-        if (!bAnyPlayerLeft)
+        if (!IsPlayerInTrigger())
         {
             StopSpawningProcess();
         }
@@ -196,9 +199,18 @@ void AZombieSpawnPool::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor 
 
 void AZombieSpawnPool::StartSpawningProcess(APawn *PlayerPawn)
 {
+    if (!IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
     if (bPlayerInside)
         return;
+
     bPlayerInside = true;
+    UpdateMissionObjective(); // ← UI 추가
+
 
     // 최초 수량 스폰
     if (!bInitialSpawnDone)
@@ -229,13 +241,45 @@ void AZombieSpawnPool::StopSpawningProcess()
     }
 }
 
+bool AZombieSpawnPool::IsPlayerInTrigger() const
+{
+    if (!TriggerBox)
+        return false;
+
+    TArray<AActor *> OverlappingActors;
+    TriggerBox->GetOverlappingActors(OverlappingActors);
+
+    for (AActor *Actor : OverlappingActors)
+    {
+        APawn *OutPawn = nullptr;
+        if (IsPlayerActor(Actor, OutPawn))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void AZombieSpawnPool::SpawnPeriodicZombies()
 {
+    if (!bPlayerInside || !IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
     SpawnZombieBatch(PeriodicSpawnCount);
 }
 
 void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 {
+    if (!IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
     if (!ZombieClass || !GetWorld())
     {
         return;
@@ -255,6 +299,12 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 
     for (int32 i = 0; i < ActualSpawnCount; ++i)
     {
+        if (!IsPlayerInTrigger())
+        {
+            StopSpawningProcess();
+            break;
+        }
+
         FVector SpawnLocation = GetRandomSpawnPoint();
         FRotator SpawnRotation = FRotator(0.0f, FMath::RandRange(0.0f, 360.0f), 0.0f);
 
@@ -285,13 +335,30 @@ void AZombieSpawnPool::CleanupDeadZombies()
 
 FVector AZombieSpawnPool::GetRandomSpawnPoint() const
 {
-    if (TriggerBox)
+    if (!SpawnBox || !GetWorld())
     {
-        FVector Center = TriggerBox->GetComponentLocation();
-        FVector Extents = TriggerBox->GetScaledBoxExtent();
-        return UKismetMathLibrary::RandomPointInBoundingBox(Center, Extents);
+        return GetActorLocation();
     }
-    return GetActorLocation();
+
+    const FVector Center = SpawnBox->GetComponentLocation();
+    const FVector Extents = SpawnBox->GetScaledBoxExtent();
+
+    FVector RandomPoint = UKismetMathLibrary::RandomPointInBoundingBox(Center, Extents);
+
+    FVector TraceStart = FVector(RandomPoint.X, RandomPoint.Y, Center.Z + Extents.Z);
+    FVector TraceEnd = FVector(RandomPoint.X, RandomPoint.Y, Center.Z - Extents.Z - 500.0f);
+
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
+    {
+        const float CharacterHalfHeightOffset = 95.0f;
+        return HitResult.Location + FVector(0.0f, 0.0f, CharacterHalfHeightOffset);
+    }
+
+    return RandomPoint;
 }
 
 void AZombieSpawnPool::PrintDebugMessage(const FString &Message, FColor Color) const
@@ -303,3 +370,57 @@ void AZombieSpawnPool::PrintDebugMessage(const FString &Message, FColor Color) c
         GEngine->AddOnScreenDebugMessage(-1, 3.0f, Color, Message);
     }
 }
+
+// UI 관련 함수
+void AZombieSpawnPool::UpdateMissionObjective() const
+{
+    UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] UpdateMissionObjective called. Text=%s"), *MissionObjectiveText.ToString());
+
+    if (MissionObjectiveText.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] MissionObjectiveText is EMPTY!"));
+        return;
+    }
+
+    APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0);
+    if (!PC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] PlayerController is null!"));
+        return;
+    }
+
+    ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC);
+    if (!LastSignalPC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] Cast to LastSignalPlayerController FAILED!"));
+        return;
+    }
+
+    ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent();
+    if (!HUD)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] HUDComponent is null!"));
+        return;
+    }
+
+    HUD->SetMissionObjective(MissionObjectiveText);
+    UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] SetMissionObjective called successfully!"));
+}
+
+// {
+//    if (MissionObjectiveText.IsEmpty())
+//    {
+//        return;
+//    }
+//
+//    if (APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0))
+//    {
+//        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+//        {
+//            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+//            {
+//                HUD->SetMissionObjective(MissionObjectiveText);
+//            }
+//        }
+//    }
+//}

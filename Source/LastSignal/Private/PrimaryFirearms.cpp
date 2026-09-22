@@ -19,6 +19,7 @@ AM4A1::AM4A1()
     S.InitialReserveAmmo = 120;
     S.ReloadTime = 2.5f;
     S.TacReloadTime = 1.8f;
+    S.SwapDelay = 0.5f;
     S.bEnableChamberRound = true;
 
     S.PitchKick = FVector2D(-2.0f, -1.5f);
@@ -53,6 +54,7 @@ ASR25::ASR25()
     S.InitialReserveAmmo = 80;
     S.ReloadTime = 3.0f;
     S.TacReloadTime = 2.2f;
+    S.SwapDelay = 0.5f;
     S.bEnableChamberRound = true;
 
     S.PitchKick = FVector2D(-2.2f, -1.8f);
@@ -92,6 +94,7 @@ AMP153::AMP153()
     // 개별 장전에서는 한 발을 넣는 시간이다.
     S.ReloadTime = 0.65f;
     S.TacReloadTime = 0.65f;
+    S.SwapDelay = 0.5f;
     S.bEnableChamberRound = false;
 
     S.PitchKick = FVector2D(-6.0f, -4.5f);
@@ -126,6 +129,7 @@ AGlock19::AGlock19()
     S.InitialReserveAmmo = 48;
     S.ReloadTime = 1.8f;
     S.TacReloadTime = 1.2f;
+    S.SwapDelay = 0.5f;
     S.bEnableChamberRound = true;
 
     S.PitchKick = FVector2D(-1.5f, -1.0f);

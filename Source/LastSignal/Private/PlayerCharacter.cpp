@@ -1,4 +1,5 @@
 ﻿#include "PlayerCharacter.h"
+#include "LastSignalGameInstance.h"
 #include "AdrenalineSkill.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -65,21 +66,121 @@ void APlayerCharacter::BeginPlay()
         }
     }
 
-    if (WeaponClass) // 무기 클래스가 지정돼 있으면 스폰해서 바로 장착
-    {
-        EquippedWeapon = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass);
+    // 무기 슬롯 2개 초기화
+    WeaponSlots.Init(nullptr, 2);
 
-        if (EquippedWeapon)
+    // 시작 시 보조무기 스폰 및 장착
+    if (WeaponClass)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.Instigator = this;
+
+        APrimaryWeapon *SpawnedSecondary = GetWorld()->SpawnActor<APrimaryWeapon>(WeaponClass, SpawnParams);
+        if (SpawnedSecondary)
         {
-            EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None); // 일단 팔 메시 없어서 소켓 없이 카메라 기준으로 바로 부착
-            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Weapon [%s] successfully equipped."), *EquippedWeapon->GetName());
+            WeaponSlots[1] = SpawnedSecondary;
+            SwitchWeapon(1); // 시작 시 보조무기 장착
+            UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Secondary weapon [%s] spawned and equipped in slot 1."), *SpawnedSecondary->GetName());
         }
     }
+ 
     else
     {
         UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
     }
+
+    if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance()))
+    {
+        if (GI->bSavedIsSwapUnlocked && GI->SavedPrimaryWeaponClass)
+        {
+            EquipPrimaryWeapon(GI->SavedPrimaryWeaponClass);
+        }
+        else
+        {
+            bIsSwapUnlocked = false; // 상호작용 전 스왑 잠금
+        }
+    }
+    else
+    {
+        bIsSwapUnlocked = false;
+    }
 }
+	
+void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass)
+{
+    if (!NewWeaponClass)
+        return;
+
+    // 기존 슬롯 0 무기 파괴 (재교체 기능 지원)
+    if (WeaponSlots[0])
+    {
+        WeaponSlots[0]->Unequip();
+        WeaponSlots[0]->Destroy();
+        WeaponSlots[0] = nullptr;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.Instigator = this;
+
+    APrimaryWeapon *NewPrimary = GetWorld()->SpawnActor<APrimaryWeapon>(NewWeaponClass, SpawnParams);
+    if (NewPrimary)
+    {
+        WeaponSlots[0] = NewPrimary;
+        bIsSwapUnlocked = true; // 스왑 기능 해금
+        SwitchWeapon(0); // 주무기 장착
+        UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Primary weapon [%s] spawned and equipped in slot 0."), *NewPrimary->GetName());
+       
+        if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance()))
+        {
+            GI->bSavedIsSwapUnlocked = true;
+            GI->SavedPrimaryWeaponClass = NewWeaponClass;
+        }
+    }
+}
+
+void APlayerCharacter::OnWeaponSlot1()
+{
+    if (!bIsSwapUnlocked || !WeaponSlots[0])
+        return;
+
+    SwitchWeapon(0);
+}
+
+void APlayerCharacter::OnWeaponSlot2()
+{
+    if (!bIsSwapUnlocked || !WeaponSlots[1])
+        return;
+
+    SwitchWeapon(1);
+}
+
+void APlayerCharacter::SwitchWeapon(int32 SlotIndex)
+{
+    if (!WeaponSlots.IsValidIndex(SlotIndex))
+        return;
+
+    APrimaryWeapon *TargetWeapon = WeaponSlots[SlotIndex];
+    if (!TargetWeapon)
+        return;
+
+    if (CurrentWeaponIndex == SlotIndex && CurrentWeapon == TargetWeapon)
+        return;
+
+    if (EquippedWeapon)
+    {
+        EquippedWeapon->Unequip();
+    }
+
+    CurrentWeaponIndex = SlotIndex;
+    EquippedWeapon = TargetWeapon;
+    CurrentWeapon = TargetWeapon;
+
+    EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None);
+    UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Switched to weapon [%s] in slot %d."), *EquippedWeapon->GetName(), SlotIndex);
+}
+
 
 void APlayerCharacter::Tick(float DeltaTime)
 {
@@ -154,14 +255,39 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputCom
         {
             EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &APlayerCharacter::TryInteract);
         }
+        if (WeaponSlot1Action)
+        {
+            EnhancedInput->BindAction(WeaponSlot1Action, ETriggerEvent::Started, this, &APlayerCharacter::OnWeaponSlot1);
+        }
+
+        if (WeaponSlot2Action)
+        {
+            EnhancedInput->BindAction(WeaponSlot2Action, ETriggerEvent::Started, this, &APlayerCharacter::OnWeaponSlot2);
+        }
+
+        if (PauseAction) // 일시정지 메뉴 입력 바인딩
+        {
+            EnhancedInput->BindAction(PauseAction, ETriggerEvent::Started, this, &APlayerCharacter::TogglePauseMenu);
+        }
+
     }
 }
 
-void APlayerCharacter::TryInteract()
+void APlayerCharacter::TryInteract() // 인터랙트
 {
     if (NearbyInteractable && NearbyInteractable->Implements<UInteractableTarget>())
         IInteractableTarget::Execute_Interact(NearbyInteractable, this);
 }
+
+void APlayerCharacter::TogglePauseMenu() // 일시정지
+{
+   
+    if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(GetController()))
+    {
+        LastSignalPC->TogglePauseMenu();
+    }
+}
+
 
 void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 {

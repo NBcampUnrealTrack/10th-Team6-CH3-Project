@@ -9,6 +9,7 @@
 
 class ULastSignalHUDWidget;
 class ULastSignalPlayerHUDComponent;
+class UUserWidget;
 
 UCLASS()
 class LASTSIGNAL_API ALastSignalPlayerController : public APlayerController
@@ -28,6 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|Input")
 	void TryTriggerSpecialAttack();
 
+	UFUNCTION(BlueprintCallable, Category = "LastSignal|Input")
+	void TogglePauseMenu();
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -40,4 +44,11 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "LastSignal|HUD")
 	TObjectPtr<ULastSignalHUDWidget> HUDWidgetInstance;
+
+	// 에디터에서 WBP_Pause 를 지정
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> PauseMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> PauseMenuWidgetInstance;
 };

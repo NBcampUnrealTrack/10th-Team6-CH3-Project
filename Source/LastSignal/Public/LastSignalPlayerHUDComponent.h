@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|HP")
 	void HealToFull();
 
+	UFUNCTION(BlueprintCallable, Category = "LastSignal|HP")
+    void SetHP(float NewHP);
+
 	// ================= 무기 / 탄약 (하단중앙, 우하단) =================
 	UPROPERTY(BlueprintReadOnly, Category = "LastSignal|Weapon")
 	FLastSignalWeaponHUDData CurrentWeapon;
@@ -63,15 +66,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "LastSignal|Score")
 	int32 Score = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "LastSignal|Score")
-	int32 KillCount = 0;
-
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|Score")
 	void AddScore(int32 Amount);
 
 	// 좀비 처치 시 호출 -> 스코어 증가 + 킬로그 표시 + 특수게이지 상승
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|Score")
-	void RegisterKill(FText VictimName, int32 ScoreForKill);
+        void RegisterKill(const FText &VictimName);
 
 	// ================= 미션 목표 (좌상단) =================
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|Mission")
@@ -90,6 +90,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "LastSignal|Timer")
 	void ResetStopwatch();
+
+    // GameMode가 1초마다 호출해서 화면 표시값을 동기화한다.
+    UFUNCTION(BlueprintCallable, Category = "LastSignal|Timer")
+        void UpdateTimerFromGameState(float NewTimeValue, ELastSignalTimerMode NewMode);
 
 	// ================= 특수공격 게이지 (아드레날린, 우하단) =================
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "LastSignal|Special")

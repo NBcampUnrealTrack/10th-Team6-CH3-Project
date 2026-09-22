@@ -188,7 +188,39 @@ bool APrimaryWeapon::Equip(
     // 총 메시의 현재 상대 위치·회전을 반동 기준 자세로 저장한다.
     Combat->ActivateWeapon(NewOwner, WeaponMesh);
 
+    UpdateHUD();
+
     return true;
+}
+
+void APrimaryWeapon::UpdateHUD()
+{
+    APlayerController *PC = EquippedController.Get();
+    if (!PC)
+    {
+        return;
+    }
+
+    ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC);
+    if (!LastSignalPC)
+    {
+        return;
+    }
+
+    if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+    {
+        FLastSignalWeaponHUDData WeaponData;
+        WeaponData.WeaponName = FText::FromString(GetClass()->GetName());
+        WeaponData.WeaponIcon = WeaponIcon;
+
+        if (Combat)
+        {
+            WeaponData.CurrentAmmo = Combat->GetCurrentAmmo();
+            WeaponData.MagazineSize = Combat->Stats.MagazineSize;
+        }
+
+        HUD->SetWeapon(WeaponData);
+    }
 }
 
 void APrimaryWeapon::Unequip()
@@ -308,6 +340,7 @@ void APrimaryWeapon::HandleAmmoChanged(int32 CurrentAmmo, int32 ReserveAmmo)
     {
         FLastSignalWeaponHUDData WeaponData;
         WeaponData.WeaponName = FText::FromString(GetClass()->GetName());
+        WeaponData.WeaponIcon = WeaponIcon;
         WeaponData.CurrentAmmo = CurrentAmmo;
         WeaponData.MagazineSize = Combat->Stats.MagazineSize;
 

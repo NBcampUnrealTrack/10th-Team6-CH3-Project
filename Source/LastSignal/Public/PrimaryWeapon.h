@@ -15,6 +15,7 @@ class UEnhancedInputComponent;
 class UEnhancedInputLocalPlayerSubsystem;
 class UInputAction;
 class UInputMappingContext;
+class UTexture2D;
 
 // UI 추가
 class ALastSignalPlayerController;
@@ -46,7 +47,14 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
         return Combat;
     }
 
-    // 무기 블루프린트와 애니메이션에서 조준 상태를 조회한다.
+    FORCEINLINE TSoftObjectPtr<UTexture2D> GetWeaponIcon() const 
+    { 
+        return WeaponIcon; 
+    }
+
+    UFUNCTION(BlueprintCallable, Category = "UI")
+    void UpdateHUD();
+
     UFUNCTION(BlueprintPure, Category = "Weapon|Aim")
     bool IsAiming() const;
 
@@ -65,6 +73,9 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     TObjectPtr<UWeaponCombatComponent> Combat;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+    TSoftObjectPtr<UTexture2D> WeaponIcon;
 
     // 기본 키는 생성자에서 지정한다.
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|Input")

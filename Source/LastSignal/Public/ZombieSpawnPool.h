@@ -37,6 +37,10 @@ struct FZombieSpawnPoolData : public FTableRowBase
     // 필드 내 최대 유지 가능 좀비 수
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
     int32 MaxZombieCount = 15;
+
+    // UI 추가: 화면에 표시할 미션 목표 문구
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
+    FText MissionObjectiveText;
 };
 
 UCLASS()
@@ -52,17 +56,22 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
 
   public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    TObjectPtr<USceneComponent> DefaultRootComponent;
+    
+    // [플레이어 진입 감지용] 트리거 박스
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent *TriggerBox;
 
-    // [방법 1] 행을 직접 선택하는 방식
+    // [좀비 실제 스폰 영역] 스폰 박스
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    TObjectPtr<UBoxComponent> SpawnBox;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Data")
     FDataTableRowHandle SpawnDataRow;
 
-    // [방법 2] 맵 이름 기반으로 자동 데이터 테이블 로드하는 방식
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Data")
     UDataTable *SpawnDataTable;
 
-    // [스폰 설정 변수 (디테일 창에서 인스턴스별 직접 수정 가능)]
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
     FName TargetMapName;
 
@@ -80,6 +89,10 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
     int32 MaxZombieCount = 15;
+
+    // UI 추가
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
+    FText MissionObjectiveText;
 
     // 디버그 메세지 화면 표시 여부
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Debug")
@@ -109,5 +122,9 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     FVector GetRandomSpawnPoint() const;
     void CleanupDeadZombies();
     bool IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const;
+    bool IsPlayerInTrigger() const;
     void PrintDebugMessage(const FString &Message, FColor Color = FColor::Green) const;
+
+    // UI
+    void UpdateMissionObjective() const;
 };

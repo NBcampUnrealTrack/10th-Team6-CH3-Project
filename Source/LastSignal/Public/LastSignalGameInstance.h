@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "LastSignalGameInstance.generated.h"
 
+class APrimaryWeapon;
 
 UCLASS()
 class LASTSIGNAL_API ULastSignalGameInstance : public UGameInstance
@@ -26,7 +27,15 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Save")
     bool bTimeLimitStarted = false;
 
-	
-private:
+	UPROPERTY(BlueprintReadWrite, Category = "Save")
+    bool bSavedIsSwapUnlocked = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    TSubclassOf<APrimaryWeapon> SavedPrimaryWeaponClass = nullptr;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    float SavedSkillGauge = 0.0f;
+
+  private:
 	virtual void Init() override;
 };

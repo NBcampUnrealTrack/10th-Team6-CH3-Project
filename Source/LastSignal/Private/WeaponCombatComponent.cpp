@@ -11,6 +11,7 @@
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/SphereComponent.h"
 
 
 
@@ -62,6 +63,18 @@ void UWeaponCombatComponent::ActivateWeapon(
     bEquipped = true;
     SetComponentTickEnabled(true);
     NotifyAmmo();
+
+    // 무기 스왑 딜레이
+    bSwapping = true;
+    if (UWorld *World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            SwapTimer,
+            this,
+            &UWeaponCombatComponent::EndSwap,
+            FMath::Max(0.01f, Stats.SwapDelay),
+            false);
+    }
 }
 
 void UWeaponCombatComponent::DeactivateWeapon()
@@ -69,12 +82,14 @@ void UWeaponCombatComponent::DeactivateWeapon()
     bAiming = false;
     bEquipped = false;
     bTriggerHeld = false;
+    bSwapping = false;
     CurrentSpreadHeat = 0.0f; // 누적 탄퍼짐 초기화
 
     if (UWorld *World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(FireTimer);
         World->GetTimerManager().ClearTimer(ReloadTimer);
+        World->GetTimerManager().ClearTimer(SwapTimer);
     }
 
     if (bReloading)
@@ -96,7 +111,7 @@ void UWeaponCombatComponent::DeactivateWeapon()
 
 void UWeaponCombatComponent::StartFire()
 {
-    if (!bEquipped || bTriggerHeld)
+    if (!bEquipped || bTriggerHeld || bSwapping)
     {
         return;
     }
@@ -139,7 +154,6 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
         return;
     }
 
-    // 1. 직접 맞은 액터나 그 액터의 Owner(주인)를 좀비 클래스로 캐스팅 시도
     AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(HitActor);
     if (!Zombie && HitActor->GetOwner())
     {
@@ -150,15 +164,24 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
     {
         AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
 
-        // 좀비를 정상 인식했을 때 데미지 전달
+        float FinalDamage = FMath::Max(0.0f, Stats.Damage);
+
+        // 헤드샷 판정: 맞은 컴포넌트가 HeadHitbox인지 확인
+        const bool bHeadshot = (HitResult.GetComponent() == Zombie->GetHeadHitbox());
+        if (bHeadshot)
+        {
+            FinalDamage *= Zombie->HeadshotMultiplier;
+        }
+
         UGameplayStatics::ApplyDamage(
             Zombie,
-            FMath::Max(0.0f, Stats.Damage),
+            FinalDamage,
             InstigatorController,
             GetOwner(),
             UDamageType::StaticClass());
 
-        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Applied Damage."));
+        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Headshot: %s / Damage: %f"),
+               bHeadshot ? TEXT("YES") : TEXT("NO"), FinalDamage);
     }
     else
     {
@@ -433,7 +456,7 @@ void UWeaponCombatComponent::StartReload()
     const bool bIsTactical = (CurrentAmmo > 0);
     const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
 
-    if (!bEquipped || bReloading ||
+    if (!bEquipped || bReloading || bSwapping ||
         CurrentAmmo >= MaxCapacity || ReserveAmmo <= 0)
     {
         return;
@@ -453,6 +476,11 @@ void UWeaponCombatComponent::StartReload()
         false);
 
     OnReloadChanged.Broadcast(true);
+}
+
+void UWeaponCombatComponent::EndSwap()
+{
+    bSwapping = false;
 }
 
 void UWeaponCombatComponent::ReloadStep()

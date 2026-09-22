@@ -6,35 +6,14 @@
 
 ULastSignalPlayerHUDComponent::ULastSignalPlayerHUDComponent()
 {
-	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
 void ULastSignalPlayerHUDComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ---- 타이머 갱신 (스톱워치 : 증가 / 카운트다운 : 감소) ----
-	if (TimerMode == ELastSignalTimerMode::Stopwatch)
-	{
-		TimeValue += DeltaTime;
-	}
-	else // Countdown
-	{
-		TimeValue = FMath::Max(0.f, TimeValue - DeltaTime);
-		if (TimeValue <= 0.f)
-		{
-			TriggerGameOver();
-		}
-	}
-	OnTimerUpdated.Broadcast(TimeValue, TimerMode);
-
-	// ---- 특수공격(아드레날린) 게이지는 시간이 지날수록 자동 상승 ----
-	if (!bSpecialAttackActive && SpecialGaugePercent < 100.f)
-	{
-		SpecialGaugePercent = FMath::Clamp(SpecialGaugePercent + GaugePerSecond * DeltaTime, 0.f, 100.f);
-		OnSpecialGaugeChanged.Broadcast(SpecialGaugePercent);
-	}
+	
 }
 
 void ULastSignalPlayerHUDComponent::ApplyDamage(float DamageAmount)
@@ -53,6 +32,12 @@ void ULastSignalPlayerHUDComponent::HealToFull()
 	// [안전지대:재정비] 진입 시 HP 100% 회복
 	CurrentHP = MaxHP;
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
+}
+
+void ULastSignalPlayerHUDComponent::SetHP(float NewHP)
+{
+    CurrentHP = FMath::Clamp(NewHP, 0.f, MaxHP);
+    OnHPChanged.Broadcast(CurrentHP, MaxHP);
 }
 
 void ULastSignalPlayerHUDComponent::SetWeapon(const FLastSignalWeaponHUDData& NewWeapon)
@@ -79,16 +64,24 @@ void ULastSignalPlayerHUDComponent::AddScore(int32 Amount)
 	OnScoreChanged.Broadcast(Score);
 }
 
-void ULastSignalPlayerHUDComponent::RegisterKill(FText VictimName, int32 ScoreForKill)
+void ULastSignalPlayerHUDComponent::RegisterKill(const FText &VictimName)
 {
-	KillCount++;
-	AddScore(ScoreForKill);
+    // Score를 처치 수로 사용
+    Score++;
 
-	SpecialGaugePercent = FMath::Clamp(SpecialGaugePercent + GaugePerKill, 0.f, 100.f);
-	OnSpecialGaugeChanged.Broadcast(SpecialGaugePercent);
+    OnScoreChanged.Broadcast(Score);
 
-	// 좌하단이 아니라 킬확정 로그(킬로그) - 몬스터 처치 시 노출 후 Fade-out
-	OnKillConfirmed.Broadcast(VictimName);
+    // 특수공격 게이지 증가
+    SpecialGaugePercent =
+        FMath::Clamp(
+            SpecialGaugePercent + GaugePerKill,
+            0.f,
+            100.f);
+
+    OnSpecialGaugeChanged.Broadcast(SpecialGaugePercent);
+
+    // 킬로그
+    OnKillConfirmed.Broadcast(VictimName);
 }
 
 void ULastSignalPlayerHUDComponent::SetMissionObjective(FText NewObjective)
@@ -110,6 +103,18 @@ void ULastSignalPlayerHUDComponent::ResetStopwatch()
 	TimeValue = 0.f;
 	OnTimerModeChanged.Broadcast(TimerMode);
 	OnTimerUpdated.Broadcast(TimeValue, TimerMode);
+}
+
+void ULastSignalPlayerHUDComponent::UpdateTimerFromGameState(float NewTimeValue, ELastSignalTimerMode NewMode)
+{
+    if (TimerMode != NewMode)
+    {
+        TimerMode = NewMode;
+        OnTimerModeChanged.Broadcast(TimerMode);
+    }
+
+    TimeValue = FMath::Max(0.f, NewTimeValue);
+    OnTimerUpdated.Broadcast(TimeValue, TimerMode);
 }
 
 bool ULastSignalPlayerHUDComponent::TryActivateSpecialAttack()
