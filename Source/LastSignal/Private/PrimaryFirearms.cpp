@@ -122,17 +122,17 @@ AGlock19::AGlock19()
     S.ReloadType = EWeaponReloadType::Magazine;
 
     S.Damage = 18.0f;
-    S.RPM = 300.0f;
+    S.RPM = 450.0f;
     S.Range = 8000.0f;
 
-    S.MagazineSize = 12;
-    S.InitialReserveAmmo = 48;
+    S.MagazineSize = 20;
+    S.InitialReserveAmmo = 120;
     S.ReloadTime = 1.8f;
     S.TacReloadTime = 1.2f;
     S.SwapDelay = 0.5f;
     S.bEnableChamberRound = true;
 
-    S.PitchKick = FVector2D(-1.5f, -1.0f);
+    S.PitchKick = FVector2D(-5.5f, -5.0f);
     S.YawKick = FVector2D(-0.3f, 0.3f);
 
     S.CameraKickSpeed = 25.0f;
