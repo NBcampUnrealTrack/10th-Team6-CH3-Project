@@ -739,3 +739,11 @@ void UWeaponCombatComponent::SetAiming(bool bNewAiming)
     // 장착 중이고 재장전하지 않을 때만 조준할 수 있다.
     bAiming = bNewAiming && bEquipped && !bReloading;
 }
+
+void UWeaponCombatComponent::SetAmmo(int32 InCurrent, int32 InReserve)
+{
+    CurrentAmmo = InCurrent;
+    ReserveAmmo = InReserve;
+
+    NotifyAmmo();
+}
