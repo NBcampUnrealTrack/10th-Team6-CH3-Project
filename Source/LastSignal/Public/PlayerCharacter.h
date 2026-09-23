@@ -103,6 +103,10 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
     float CrouchSpeed = 250.0f;
 
+    // 달리기 시작 시 순간적으로 튀어나가는 가속력 (기본값: 300.0f) --0923
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    float SprintImpulseStrength = 300.0f;
+
     // 스킬 입력 액션
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> SkillAction;
@@ -118,7 +122,7 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     // 스킬 컴포넌트
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     TObjectPtr<USkillComponent> SkillComponent;
-    // 무기 스왑 입력 
+    // 무기 스왑 입력
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
     TObjectPtr<UInputAction> WeaponSlot1Action; // 1번 키
 
@@ -127,7 +131,6 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     bool bIsSwapUnlocked = false; // 상호작용 전 스왑 비활성화
-
 
     void Move(const FInputActionValue &Value); // Look이랑 Move 이쪽입니다.
     void Look(const FInputActionValue &Value);
@@ -283,8 +286,6 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     TWeakObjectPtr<APrimaryWeapon> BobWeapon;
     FVector BobWeaponBaseLocation = FVector::ZeroVector;
 
- private:
-
+  private:
     void RestoreStateFromGameInstance();
-
 };

@@ -1,5 +1,4 @@
 ﻿#include "PlayerCharacter.h"
-#include "LastSignalGameInstance.h"
 #include "AdrenalineSkill.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -13,8 +12,10 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InteractableTarget.h"
+#include "LastSignalGameInstance.h"
 #include "PrimaryWeapon.h"
 #include "SkillComponent.h"
+#include "WeaponCombatComponent.h" // UWeaponCombatComponent 접근을 위해 추가
 
 // UI 추가
 #include "LastSignalPlayerController.h"
@@ -113,7 +114,7 @@ void APlayerCharacter::BeginPlay()
 
     RestoreStateFromGameInstance();
 }
-	
+
 void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass)
 {
     if (!NewWeaponClass)
@@ -136,9 +137,9 @@ void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponC
     {
         WeaponSlots[0] = NewPrimary;
         bIsSwapUnlocked = true; // 스왑 기능 해금
-        SwitchWeapon(0); // 주무기 장착
+        SwitchWeapon(0);        // 주무기 장착
         UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Primary weapon [%s] spawned and equipped in slot 0."), *NewPrimary->GetName());
-       
+
         if (ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance()))
         {
             GI->bSavedIsSwapUnlocked = true;
@@ -187,7 +188,6 @@ void APlayerCharacter::SwitchWeapon(int32 SlotIndex)
     EquippedWeapon->Equip(this, FirstPersonCameraComponent, NAME_None);
     UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Switched to weapon [%s] in slot %d."), *EquippedWeapon->GetName(), SlotIndex);
 }
-
 
 void APlayerCharacter::Tick(float DeltaTime)
 {
@@ -276,7 +276,6 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputCom
         {
             EnhancedInput->BindAction(PauseAction, ETriggerEvent::Started, this, &APlayerCharacter::TogglePauseMenu);
         }
-
     }
 }
 
@@ -288,13 +287,12 @@ void APlayerCharacter::TryInteract() // 인터랙트
 
 void APlayerCharacter::TogglePauseMenu() // 일시정지
 {
-   
+
     if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(GetController()))
     {
         LastSignalPC->TogglePauseMenu();
     }
 }
-
 
 void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 {
@@ -313,19 +311,54 @@ void APlayerCharacter::Move(const FInputActionValue &Value) // Move 함수
 
 void APlayerCharacter::StartSprint()
 {
-    // 달리기 입력 상태를 흔들림에도 전달한다.
+    // 달리기 입력 상태를 흔들림에도 전달한다. --0923
     bSprintBobRequested = true;
     if (bIsCrouched)
     {
-        UnCrouch(); // 웅크린 상태에서 달리기를 누르면 일어남
+        UnCrouch(); // 웅크린 상태에서 달리기를 누르면 일어남 --0923
     }
-    GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+
+    if (UCharacterMovementComponent *Movement = GetCharacterMovement())
+    {
+        Movement->MaxWalkSpeed = SprintSpeed;
+
+        // 마지막 이동 입력 방향 (복수 방향키 입력 대응) --0923
+        FVector SprintDirection = GetLastMovementInputVector().GetSafeNormal2D();
+
+        // 이동 입력이 없다면 Character가 바라보는 방향 설정 --0923
+        if (SprintDirection.IsNearlyZero())
+        {
+            SprintDirection = GetActorForwardVector().GetSafeNormal2D();
+        }
+
+        // 실제로 캐릭터가 수평 방향으로 움직이고 있을 때만 추진력 추가
+        if (GetVelocity().SizeSquared2D() > FMath::Square(10.0f))
+        {
+            // bVelocityChange-> false로 설정, 속도 자연스럽게
+            Movement->AddImpulse(SprintDirection * (SprintImpulseStrength * 100.0f), false);
+        }
+    }
 }
 
 void APlayerCharacter::StopSprint()
 {
     bSprintBobRequested = false;
-    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+
+    if (UCharacterMovementComponent *Movement = GetCharacterMovement())
+    {
+        Movement->MaxWalkSpeed = WalkSpeed;
+
+        // 달리기를 멈출 때 속도가 WalkSpeed보다 높으면 엔진 브레이크로 뚝 멈추는 것을 방지 --0923
+        FVector CurrentVelocity = Movement->Velocity;
+        float CurrentSpeed2D = CurrentVelocity.Size2D();
+
+        if (CurrentSpeed2D > WalkSpeed)
+        {
+            // 수평 이동 속도만 WalkSpeed 수준으로 매끄럽게 맞춤 --0923
+            FVector HorizontalVel = CurrentVelocity.GetSafeNormal2D() * WalkSpeed;
+            Movement->Velocity = FVector(HorizontalVel.X, HorizontalVel.Y, CurrentVelocity.Z);
+        }
+    }
 }
 
 void APlayerCharacter::StartCrouch()
@@ -475,7 +508,10 @@ void APlayerCharacter::UpdateMovementBob(float DeltaTime)
 
     const float Speed = GetVelocity().Size2D();
     const bool bAlive = CurrentHealth > 0.0f;
-    const bool bMovingOnGround = bAlive && GetCharacterMovement()->IsMovingOnGround() && Speed > 5.0f;
+
+    const bool bIsMoving = GetVelocity().SizeSquared2D() > FMath::Square(10.0f); // 이동 중인지 확인 (속도가 10 이상이면 이동 중으로 간주) -- 0923추가
+
+    const bool bMovingOnGround = bAlive && GetCharacterMovement()->IsMovingOnGround() && bIsMoving;
     const bool bSprint = bSprintBobRequested && !bIsCrouched && bAlive;
     const float InterpSpeed = FMath::Max(BobBlendSpeed, 0.01f);
 
