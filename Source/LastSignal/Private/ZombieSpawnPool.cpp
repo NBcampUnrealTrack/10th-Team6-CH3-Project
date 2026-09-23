@@ -280,7 +280,7 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
         return;
     }
 
-    if (!ZombieClass || !GetWorld())
+    if (ZombieClass.Num() == 0 || !GetWorld())
     {
         return;
     }
@@ -305,13 +305,21 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
             break;
         }
 
+        int32 RandomIndex = FMath::RandRange(0, ZombieClass.Num() - 1);
+        TSubclassOf<AActor> SelectedClass = ZombieClass[RandomIndex];
+
+        if (!SelectedClass)
+        {
+            continue;
+        }
+
         FVector SpawnLocation = GetRandomSpawnPoint();
         FRotator SpawnRotation = FRotator(0.0f, FMath::RandRange(0.0f, 360.0f), 0.0f);
 
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-        AActor *NewZombie = GetWorld()->SpawnActor<AActor>(ZombieClass, SpawnLocation, SpawnRotation, SpawnParams);
+        AActor *NewZombie = GetWorld()->SpawnActor<AActor>(SelectedClass, SpawnLocation, SpawnRotation, SpawnParams);
         if (NewZombie)
         {
             SpawnedZombies.Add(NewZombie);
