@@ -31,14 +31,26 @@ void ARadio::BeginPlay()
 }
 
 void ARadio::OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
-     UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult)
+                               UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult)
 {
-    if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0)) //다른 액터말고 플레이어만 걸러지게 함
+    if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0)) // 다른 액터말고 플레이어만 걸러지게 함
         return;
 
-    
-     if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
+    if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
+    {
         PlayerCharacter->NearbyInteractable = this;
+
+        // UI 추가
+        if (ALastSignalPlayerController *PC =
+                Cast<ALastSignalPlayerController>(PlayerCharacter->GetController()))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
+            {
+                HUD->SetInteractPromptVisible(true);
+            }
+        }
+        // 여기까지
+    }
 }
 
 void ARadio::OnBoxEndOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
@@ -47,9 +59,21 @@ void ARadio::OnBoxEndOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherA
     if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0))
         return;
 
-    
     if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
+    {
         PlayerCharacter->NearbyInteractable = nullptr;
+
+        // UI 추가
+        if (ALastSignalPlayerController *PC =
+                Cast<ALastSignalPlayerController>(PlayerCharacter->GetController()))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
+            {
+                HUD->SetInteractPromptVisible(false);
+            }
+        }
+        // 여기까지
+    }
 }
 
 void ARadio::Interact_Implementation(AActor *Interactor)
@@ -70,8 +94,8 @@ void ARadio::Interact_Implementation(AActor *Interactor)
         {
             if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
             {
-                HUD->HealToFull();
-                HUD->SwitchToCountdown(900.f);
+                HUD->SetMissionObjective(
+                    FText::FromString(TEXT("15분 후 구조 헬기가 옥상에 도착한다")));
             }
         }
     }

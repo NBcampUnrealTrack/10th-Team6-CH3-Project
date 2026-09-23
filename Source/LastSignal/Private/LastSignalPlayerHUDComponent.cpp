@@ -154,3 +154,8 @@ void ULastSignalPlayerHUDComponent::TriggerGameOver()
 {
 	OnGameOverRequested.Broadcast();
 }
+
+void ULastSignalPlayerHUDComponent::SetInteractPromptVisible(bool bVisible)
+{
+    OnInteractPromptChanged.Broadcast(bVisible);
+}
