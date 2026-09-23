@@ -50,7 +50,7 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     bool GetIsDead() const { return bIsDead; }
 
     UPROPERTY(EditAnywhere, Category = "AI")
-    float WalkSpeed = 300.0f;
+    float WalkSpeed = 200.0f;
 
     UPROPERTY(EditAnywhere, Category = "AI")
     float RunSpeed = 600.0f;
