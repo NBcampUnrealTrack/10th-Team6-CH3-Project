@@ -1,19 +1,17 @@
 ﻿#include "WeaponCombatComponent.h"
 
-//사격 디버깅용 코드
+// 사격 디버깅용 코드
 #include "DrawDebugHelpers.h"
 //
-#include "GameFramework/Character.h"
-#include "ZombieAICharacter.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
-#include "Components/SphereComponent.h"
-
-
+#include "ZombieAICharacter.h"
 
 UWeaponCombatComponent::UWeaponCombatComponent()
 {
@@ -83,7 +81,6 @@ void UWeaponCombatComponent::DeactivateWeapon()
     bEquipped = false;
     bTriggerHeld = false;
     bSwapping = false;
-    CurrentSpreadHeat = 0.0f; // 누적 탄퍼짐 초기화
 
     if (UWorld *World = GetWorld())
     {
@@ -248,9 +245,6 @@ void UWeaponCombatComponent::TryFire()
     // 명중 방향 계산이 끝난후 탄퍼짐(Heat) 누적
     AddRecoil();
 
-    const float MaxHeat = FMath::Max(0.0f, Stats.MaxSpreadAngle - Stats.BaseSpreadAngle);
-    CurrentSpreadHeat = FMath::Clamp(CurrentSpreadHeat + Stats.SpreadIncreasePerShot, 0.0f, MaxHeat);
-
     // 연사 시 다음 발사 예약
     if (Stats.FireMode == EWeaponFireMode::Automatic && CurrentAmmo > 0)
     {
@@ -323,29 +317,29 @@ bool UWeaponCombatComponent::FireSingleShot(
         Params);
 
     //// 디버그: 실제 충돌 지점까지만 선을 표시한다.
-    //const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
+    // const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
 
-    //DrawDebugLine(
-    //    World,
-    //    TraceStart,
-    //    DebugEnd,
-    //    bOutHit ? FColor::Green : FColor::Red,
-    //    false,
-    //    10.0f,
-    //    1,
-    //    4.0f);
+    // DrawDebugLine(
+    //     World,
+    //     TraceStart,
+    //     DebugEnd,
+    //     bOutHit ? FColor::Green : FColor::Red,
+    //     false,
+    //     10.0f,
+    //     1,
+    //     4.0f);
 
     //// 디버그: 발사 시작점은 파란 구체로 표시한다.
-    //DrawDebugSphere(
-    //    World,
-    //    TraceStart,
-    //    3.0f,
-    //    8,
-    //    FColor::Blue,
-    //    false,
-    //    10.0f,
-    //    1,
-    //    1.0f);
+    // DrawDebugSphere(
+    //     World,
+    //     TraceStart,
+    //     3.0f,
+    //     8,
+    //     FColor::Blue,
+    //     false,
+    //     10.0f,
+    //     1,
+    //     1.0f);
 
     if (bOutHit)
     {
@@ -384,49 +378,68 @@ bool UWeaponCombatComponent::FireShotgun(
     FHitResult &OutHit,
     bool &bOutHit)
 {
-    APawn *Pawn = Shooter.Get();
-    AController *Controller = Pawn ? Pawn->GetController() : nullptr;
+    OutHit = FHitResult();
+    bOutHit = false;
 
-    if (!Controller || !GetWorld())
+    UWorld *World = GetWorld();
+    APawn *Pawn = Shooter.Get();
+    USceneComponent *GunMesh = RecoilVisual.Get();
+
+    if (!World || !IsValid(Pawn) || !IsValid(GunMesh))
     {
         return false;
     }
 
-    FVector ViewLocation;
-    FRotator ViewRotation;
-    Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    // 총구 소켓이 없으면 총 메시의 위치와 방향을 사용한다.
+    static const FName MuzzleSocketName(TEXT("Muzzle"));
 
-    FVector TraceStart = ViewLocation;
-    if (USceneComponent *Visual = RecoilVisual.Get())
-    {
-        if (Visual->DoesSocketExist(TEXT("Muzzle")))
-        {
-            TraceStart = Visual->GetSocketLocation(TEXT("Muzzle"));
-        }
-    }
+    const bool bHasMuzzle =
+        GunMesh->DoesSocketExist(MuzzleSocketName);
 
-    const float TotalSpread = FMath::Clamp(
-        Stats.BaseSpreadAngle + CurrentSpreadHeat,
-        0.0f,
-        Stats.MaxSpreadAngle);
+    const FTransform FireTransform = bHasMuzzle
+                                         ? GunMesh->GetSocketTransform(MuzzleSocketName, RTS_World)
+                                         : GunMesh->GetComponentTransform();
 
-    const float HalfConeAngleRad = FMath::DegreesToRadians(TotalSpread * 0.5f);
+    const FVector TraceStart = FireTransform.GetLocation();
+    const FVector FireDirection =
+        FireTransform.GetUnitAxis(EAxis::X);
+
+    const int32 NumPellets = FMath::Max(1, Stats.PelletCount);
+
+    // 전체 펠릿 수의 절반을 올림한다.
+    // 예: 9발 → 5발, 8발 → 4발.
+    const int32 InnerPelletCount =
+        NumPellets / 2 + NumPellets % 2;
+
+    // 총구 중심 방향에서 벗어날 수 있는 최대 각도.
+    // 누적 탄퍼짐과 기본 탄퍼짐은 사용하지 않는다.
+    const float OuterAngleDegrees =
+        FMath::Clamp(Stats.MaxSpreadAngle, 0.0f, 90.0f);
+
+    const float InnerAngleDegrees = OuterAngleDegrees * 0.5f;
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(GetOwner());
     Params.AddIgnoredActor(Pawn);
 
-    const int32 NumPellets = FMath::Max(1, Stats.PelletCount);
-    bOutHit = false;
+    int32 HitPelletCount = 0;
 
-    // 설정된 PelletCount (예: 9발) 수만큼 확산 발사
     for (int32 i = 0; i < NumPellets; ++i)
     {
-        const FVector PelletDir = FMath::VRandCone(ViewRotation.Vector(), HalfConeAngleRad);
-        const FVector End = TraceStart + (PelletDir * FMath::Max(1.0f, Stats.Range));
+        const float AngleDegrees = (i < InnerPelletCount)
+                                       ? InnerAngleDegrees
+                                       : OuterAngleDegrees;
+
+        const FVector PelletDirection = FMath::VRandCone(
+            FireDirection,
+            FMath::DegreesToRadians(AngleDegrees));
+
+        const FVector End =
+            TraceStart +
+            PelletDirection * FMath::Max(1.0f, Stats.Range);
 
         FHitResult PelletHit;
-        const bool bPelletHit = GetWorld()->LineTraceSingleByChannel(
+        const bool bPelletHit = World->LineTraceSingleByChannel(
             PelletHit,
             TraceStart,
             End,
@@ -435,17 +448,37 @@ bool UWeaponCombatComponent::FireShotgun(
 
         if (bPelletHit)
         {
-            // 대표 이펙트 전달용 (첫 번째 명중 피격점 저장)
+            ++HitPelletCount;
+
+            // 첫 명중 결과를 대표 이펙트용으로 전달한다.
             if (!bOutHit)
             {
                 OutHit = PelletHit;
                 bOutHit = true;
             }
 
-            // 맞은 펠릿당 데미지 개별 적용
             ApplyDamage(PelletHit);
+
+            // 일반탄과 동일한 명중 디버그 표시.
+            DrawDebugPoint(
+                World,
+                PelletHit.ImpactPoint,
+                15.0f,
+                FColor::Yellow,
+                false,
+                10.0f,
+                1);
         }
     }
+
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT("[ShotgunTraceDebug] Source=%s Pellets=%d Inner=%d Hits=%d"),
+        bHasMuzzle ? TEXT("MuzzleSocket") : TEXT("WeaponMesh"),
+        NumPellets,
+        InnerPelletCount,
+        HitPelletCount);
 
     return true;
 }
@@ -490,15 +523,17 @@ void UWeaponCombatComponent::ReloadStep()
         return;
     }
 
-    // 전술 재장전일 경우 탄창 용량 + 약실 1발 장전
     const bool bIsTactical = (CurrentAmmo > 0);
-    const int32 MaxCapacity = bIsTactical ? (Stats.MagazineSize + 1) : Stats.MagazineSize;
+    const int32 MaxCapacity = bIsTactical
+                                  ? Stats.MagazineSize + 1
+                                  : Stats.MagazineSize;
 
-    const int32 Needed = FMath::Max(0, MaxCapacity - CurrentAmmo);
+    const int32 Needed =
+        FMath::Max(0, MaxCapacity - CurrentAmmo);
 
     int32 AmmoToLoad = FMath::Min(Needed, ReserveAmmo);
 
-    // 개별 장전은 이번 단계에서 한 발만 삽입한다.
+    // 산탄총은 한 번에 한 발만 장전한다.
     if (Stats.ReloadType == EWeaponReloadType::PerShell)
     {
         AmmoToLoad = FMath::Min(AmmoToLoad, 1);
@@ -507,6 +542,7 @@ void UWeaponCombatComponent::ReloadStep()
     CurrentAmmo += AmmoToLoad;
     ReserveAmmo -= AmmoToLoad;
 
+    // 변수를 먼저 선언한 다음 아래에서 사용한다.
     const bool bContinueReload =
         Stats.ReloadType == EWeaponReloadType::PerShell &&
         CurrentAmmo < MaxCapacity &&
@@ -518,7 +554,7 @@ void UWeaponCombatComponent::ReloadStep()
             ReloadTimer,
             this,
             &UWeaponCombatComponent::ReloadStep,
-            FMath::Max(0.01f, Stats.ReloadTime),
+            FMath::Max(0.01f, Stats.ShellInsertTime),
             false);
     }
     else
@@ -526,6 +562,7 @@ void UWeaponCombatComponent::ReloadStep()
         EndReload();
     }
 
+    // 다음 삽입 애니메이션을 재생하는 BP 이벤트에도 전달된다.
     NotifyAmmo();
 }
 
@@ -547,35 +584,6 @@ void UWeaponCombatComponent::NotifyAmmo()
 {
     OnAmmoChanged.Broadcast(CurrentAmmo, ReserveAmmo);
 }
-
-//이하는 과거 코드 주석
-//void UWeaponCombatComponent::AddRecoil()
-//{
-//    // 한 발의 카메라 반동을 현재 목표에 누적한다.
-//    CameraTarget.X += FMath::FRandRange(
-//        Stats.PitchKick.X, Stats.PitchKick.Y);
-//
-//    CameraTarget.Y += FMath::FRandRange(
-//        Stats.YawKick.X, Stats.YawKick.Y);
-//
-//    // 블루프린트의 팔 위치 반동 범위를 옮겼다.
-//    // 새 총 메시의 로컬 축에 맞게 수치는 조정할 수 있다.
-//    VisualLocationTarget += FVector(
-//                                FMath::FRandRange(-10.0f, -5.0f),
-//                                FMath::FRandRange(1.0f, 4.0f),
-//                                FMath::FRandRange(-0.6f, 0.6f)) *
-//                            Stats.VisualKickScale;
-//
-//    // FRotator 생성자 순서는 Pitch, Yaw, Roll이다.
-//    const FRotator Kick(
-//        FMath::FRandRange(-3.0f, 3.0f) * Stats.VisualKickScale,
-//        FMath::FRandRange(3.0f, 6.0f) * Stats.VisualKickScale,
-//        FMath::FRandRange(-2.0f, 2.0f) * Stats.VisualKickScale);
-//
-//    VisualRotationTarget =
-//        (VisualRotationTarget.Quaternion() * Kick.Quaternion()).Rotator();
-//}
-////////여기까지
 
 void UWeaponCombatComponent::AddRecoil()
 {
@@ -612,22 +620,42 @@ void UWeaponCombatComponent::AddRecoil()
     const float VisualScale =
         Stats.VisualKickScale * StanceMultiplier;
 
-    // 기존의 전후·좌우·상하 이동 범위와 누적 방식을 유지한다.
+const auto RandomLocationKick = [](double A, double B) -> double
+    {
+        return FMath::FRandRange(
+            static_cast<float>(FMath::Min(A, B)),
+            static_cast<float>(FMath::Max(A, B)));
+    };
+
     VisualLocationTarget += FVector(
-                                FMath::FRandRange(-10.0f, -5.0f),
-                                FMath::FRandRange(-2.0f, 2.0f),
-                                FMath::FRandRange(-0.6f, 0.6f)) *
+                                RandomLocationKick(Stats.LocationKickMin.X, Stats.LocationKickMax.X),
+                                RandomLocationKick(Stats.LocationKickMin.Y, Stats.LocationKickMax.Y),
+                                RandomLocationKick(Stats.LocationKickMin.Z, Stats.LocationKickMax.Z)) *
                             VisualScale;
 
     // 기존 회전 범위를 유지하면서 앉았을 때 강도를 줄인다.
     // FRotator 생성자 순서는 Pitch, Yaw, Roll이다.
     const FRotator Kick(
         FMath::FRandRange(-3.0f, 3.0f) * VisualScale,
-        FMath::FRandRange(-7.5f, 7.5f) * VisualScale,
-        FMath::FRandRange(-2.0f, 2.0f) * VisualScale);
+        FMath::FRandRange(
+            -FMath::Max(0.0f, Stats.VisualYawKick),
+            FMath::Max(0.0f, Stats.VisualYawKick)) *
+            VisualScale,
+        FMath::FRandRange(
+            -FMath::Max(0.0f, Stats.VisualRollKick),
+            FMath::Max(0.0f, Stats.VisualRollKick)) *
+            VisualScale);
 
     VisualRotationTarget =
         (VisualRotationTarget.Quaternion() * Kick.Quaternion()).Rotator();
+
+    // 발사 간격 안에 한 번 들렸다 돌아오도록 한다.
+    VerticalPulseStartTime = GetWorld()->GetTimeSeconds();
+    VerticalPulseDuration = 60.0f / FMath::Max(1.0f, Stats.RPM);
+
+    // 전용 각도를 사용하고 기존 조준·앉기 감소만 적용한다.
+    // VisualKickScale은 중복 적용하지 않는다.
+    VerticalPulseAngle = Stats.ShotVerticalAngle * StanceMultiplier;
 }
 
 void UWeaponCombatComponent::TickComponent(
@@ -640,12 +668,6 @@ void UWeaponCombatComponent::TickComponent(
     if (bEquipped)
     {
         UpdateRecoil(DeltaTime);
-
-        // 사격 중단 시 누적된 탄퍼짐이 줄어든다.
-        if (CurrentSpreadHeat > 0.0f)
-        {
-            CurrentSpreadHeat = FMath::FInterpTo(CurrentSpreadHeat, 0.0f, DeltaTime, Stats.SpreadRecoverySpeed);
-        }
     }
 }
 
@@ -686,15 +708,47 @@ void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
         VisualRotationCurrent, VisualRotationTarget,
         DeltaTime, FMath::Max(0.01f, Stats.VisualKickSpeed));
 
+float VerticalPulse = 0.0f;
+
+    if (VerticalPulseStartTime >= 0.0 && GetWorld())
+    {
+        const double Elapsed =
+            GetWorld()->GetTimeSeconds() - VerticalPulseStartTime;
+
+        const float Progress = FMath::Clamp(
+            static_cast<float>(Elapsed) / FMath::Max(0.001f, VerticalPulseDuration),
+            0.0f,
+            1.0f);
+
+        // 발사 간격의 앞 25% 동안 들리고, 나머지 동안 복귀한다.
+        constexpr float PeakTime = 0.25f;
+
+        const float Phase = Progress < PeakTime
+                                ? Progress / PeakTime
+                                : (1.0f - Progress) / (1.0f - PeakTime);
+
+        // 시작·정점·종료에서 부드럽게 연결되는 곡선.
+        const float Shape = Phase * Phase * (3.0f - 2.0f * Phase);
+        VerticalPulse = VerticalPulseAngle * Shape;
+
+        if (Progress >= 1.0f)
+        {
+            VerticalPulseStartTime = -1.0;
+        }
+    }
+
     if (USceneComponent *Visual = RecoilVisual.Get())
     {
         Visual->SetRelativeLocation(
             BaseVisualLocation + VisualLocationCurrent);
 
+        // 기존 반동에 이번 발의 Z 회전만 추가한다.
+        // 기존 누적값 자체에는 저장하지 않는다.
+        FRotator FinalRotation = VisualRotationCurrent;
+        FinalRotation.Roll += VerticalPulse;
+
         Visual->SetRelativeRotation(
-            (BaseVisualRotation.Quaternion() *
-             VisualRotationCurrent.Quaternion())
-                .Rotator());
+            (BaseVisualRotation.Quaternion() * FinalRotation.Quaternion()).Rotator());
     }
 
     // 목표값 자체도 0으로 보간해서 원래 자세로 복귀시킨다.
@@ -723,7 +777,6 @@ void UWeaponCombatComponent::ResetRecoil()
         Pawn->AddControllerYawInput(-CameraCurrent.Y);
     }
 
-    CurrentSpreadHeat = 0.0f;
     CameraTarget = FVector2D::ZeroVector;
     CameraCurrent = FVector2D::ZeroVector;
 

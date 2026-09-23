@@ -77,9 +77,11 @@ struct FWeaponStats
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload", meta = (ClampMin = "0.01"))
     float TacReloadTime = 1.8f;
 
-    // 전술 재장전 시 약실 +1 적용
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload")
-    bool bEnableChamberRound = true;
+    // 산탄총의 첫 장전 동작 이후, 한 발씩 반복 삽입하는 시간.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload",
+              meta = (ClampMin = "0.01",
+                      DisplayName = "Shell Insert Time (반복 삽입 시간)"))
+    float ShellInsertTime = 0.65f;
 
     // 산탄 구현용 정보. 지금은 실제 발사에 사용하지 않는다.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Shotgun",
@@ -114,18 +116,38 @@ struct FWeaponStats
               meta = (ClampMin = "0.01"))
     float VisualReturnSpeed = 12.0f;
 
-    // --- [탄퍼짐 스펙] ---
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
-    float BaseSpreadAngle = 0.3f; // 첫 총알 발사 탄퍼짐
+    // 부모 좌표계 기준, 단위 cm.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (DisplayName = "Location Kick Min (위치 반동 최솟값)"))
+    FVector LocationKickMin = FVector(-10.0f, -2.0f, -0.6f);
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
-    float MaxSpreadAngle = 4.0f; // 최대 탄퍼짐
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (DisplayName = "Location Kick Max (위치 반동 최댓값)"))
+    FVector LocationKickMax = FVector(-5.0f, 2.0f, 0.6f);
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
-    float SpreadIncreasePerShot = 0.35f; // 1발 사격당 증가하는 탄퍼짐
+    // 발당 상하 랜덤 회전 범위: -설정값 ~ +설정값.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0",
+                      DisplayName = "Visual Roll Kick (총 수직 랜덤 반동 폭)"))
+    float VisualRollKick = 2.0f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread")
-    float SpreadRecoverySpeed = 8.0f; // 사격 중단 시 복구 속도
+    // 발당 좌우 랜덤 회전 범위: -설정값 ~ +설정값.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "15.0",
+                      DisplayName = "Visual Yaw Kick (총 좌우 반동 폭)"))
+    float VisualYawKick = 7.5f;
+
+    // Maximum shotgun angle from the muzzle direction.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Spread",
+              meta = (ClampMin = "0.0", ClampMax = "90.0"))
+    float MaxSpreadAngle = 4.0f;
+
+    // 한 발마다 추가하는 Z 회전의 최대 각도.
+    // 0이면 비활성화. 이 총에서는 음수가 총구를 드는 방향.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (UIMin = "-10.0", UIMax = "10.0",
+                      DisplayName = "Shot Vertical Angle (발당 수직 회전 각도)"))
+    float ShotVerticalAngle = 0.0f;
 
     // 무기 스왑시 발사 불가능한 시간
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
@@ -255,9 +277,10 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     bool bReloading = false;
     bool bSwapping = false;
 
+    double VerticalPulseStartTime = -1.0;
+    float VerticalPulseDuration = 0.1f;
+    float VerticalPulseAngle = 0.0f;
     double NextFireTime = 0.0;
-
-    float CurrentSpreadHeat = 0.0f;
 
     // 반동 목표값과 현재 적용된 반동값.
     FVector2D CameraTarget = FVector2D::ZeroVector;
