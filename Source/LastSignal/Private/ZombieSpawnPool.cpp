@@ -153,7 +153,7 @@ bool AZombieSpawnPool::IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const
     if (!Pawn)
         return false;
 
-    if (Pawn->IsPlayerControlled() || Pawn->IsLocallyControlled())
+    if (Pawn->IsPlayerControlled())
     {
         OutPlayerPawn = Pawn;
         return true;
@@ -187,23 +187,10 @@ void AZombieSpawnPool::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor 
         return;
 
     APawn *PlayerPawn = nullptr;
+
     if (IsPlayerActor(OtherActor, PlayerPawn))
     {
-        TArray<AActor *> OverlappingActors;
-        TriggerBox->GetOverlappingActors(OverlappingActors);
-
-        bool bAnyPlayerLeft = false;
-        for (AActor *Actor : OverlappingActors)
-        {
-            APawn *DummyPawn = nullptr;
-            if (IsPlayerActor(Actor, DummyPawn))
-            {
-                bAnyPlayerLeft = true;
-                break;
-            }
-        }
-
-        if (!bAnyPlayerLeft)
+        if (!IsPlayerInTrigger())
         {
             StopSpawningProcess();
         }
@@ -212,10 +199,16 @@ void AZombieSpawnPool::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor 
 
 void AZombieSpawnPool::StartSpawningProcess(APawn *PlayerPawn)
 {
+    if (!IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
     if (bPlayerInside)
         return;
-    bPlayerInside = true;
 
+    bPlayerInside = true;
     UpdateMissionObjective(); // ← UI 추가
 
 
@@ -248,14 +241,46 @@ void AZombieSpawnPool::StopSpawningProcess()
     }
 }
 
+bool AZombieSpawnPool::IsPlayerInTrigger() const
+{
+    if (!TriggerBox)
+        return false;
+
+    TArray<AActor *> OverlappingActors;
+    TriggerBox->GetOverlappingActors(OverlappingActors);
+
+    for (AActor *Actor : OverlappingActors)
+    {
+        APawn *OutPawn = nullptr;
+        if (IsPlayerActor(Actor, OutPawn))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void AZombieSpawnPool::SpawnPeriodicZombies()
 {
+    if (!bPlayerInside || !IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
     SpawnZombieBatch(PeriodicSpawnCount);
 }
 
 void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 {
-    if (!ZombieClass || !GetWorld())
+    if (!IsPlayerInTrigger())
+    {
+        StopSpawningProcess();
+        return;
+    }
+
+    if (ZombieClass.Num() == 0 || !GetWorld())
     {
         return;
     }
@@ -274,13 +299,27 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 
     for (int32 i = 0; i < ActualSpawnCount; ++i)
     {
+        if (!IsPlayerInTrigger())
+        {
+            StopSpawningProcess();
+            break;
+        }
+
+        int32 RandomIndex = FMath::RandRange(0, ZombieClass.Num() - 1);
+        TSubclassOf<AActor> SelectedClass = ZombieClass[RandomIndex];
+
+        if (!SelectedClass)
+        {
+            continue;
+        }
+
         FVector SpawnLocation = GetRandomSpawnPoint();
         FRotator SpawnRotation = FRotator(0.0f, FMath::RandRange(0.0f, 360.0f), 0.0f);
 
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-        AActor *NewZombie = GetWorld()->SpawnActor<AActor>(ZombieClass, SpawnLocation, SpawnRotation, SpawnParams);
+        AActor *NewZombie = GetWorld()->SpawnActor<AActor>(SelectedClass, SpawnLocation, SpawnRotation, SpawnParams);
         if (NewZombie)
         {
             SpawnedZombies.Add(NewZombie);
@@ -304,13 +343,30 @@ void AZombieSpawnPool::CleanupDeadZombies()
 
 FVector AZombieSpawnPool::GetRandomSpawnPoint() const
 {
-    if (SpawnBox)
+    if (!SpawnBox || !GetWorld())
     {
-        const FVector Center = SpawnBox->GetComponentLocation();
-        const FVector Extents = SpawnBox->GetScaledBoxExtent();
-        return UKismetMathLibrary::RandomPointInBoundingBox(Center, Extents);
+        return GetActorLocation();
     }
-    return GetActorLocation();
+
+    const FVector Center = SpawnBox->GetComponentLocation();
+    const FVector Extents = SpawnBox->GetScaledBoxExtent();
+
+    FVector RandomPoint = UKismetMathLibrary::RandomPointInBoundingBox(Center, Extents);
+
+    FVector TraceStart = FVector(RandomPoint.X, RandomPoint.Y, Center.Z + Extents.Z);
+    FVector TraceEnd = FVector(RandomPoint.X, RandomPoint.Y, Center.Z - Extents.Z - 500.0f);
+
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
+    {
+        const float CharacterHalfHeightOffset = 95.0f;
+        return HitResult.Location + FVector(0.0f, 0.0f, CharacterHalfHeightOffset);
+    }
+
+    return RandomPoint;
 }
 
 void AZombieSpawnPool::PrintDebugMessage(const FString &Message, FColor Color) const

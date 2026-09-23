@@ -149,9 +149,6 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     // 무기 슬롯
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
-    TSubclassOf<APrimaryWeapon> DefaultSecondaryWeaponClass;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     TSubclassOf<APrimaryWeapon> WeaponClass;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")

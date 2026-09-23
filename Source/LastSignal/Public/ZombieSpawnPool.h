@@ -18,9 +18,8 @@ struct FZombieSpawnPoolData : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
     FName TargetMapName;
 
-    // 소환할 좀비 클래스
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
-    TSubclassOf<AActor> ZombieClass;
+    TArray<TSubclassOf<AActor>> ZombieClass;
 
     // 최초 진입 시 스폰 수량
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
@@ -76,7 +75,7 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     FName TargetMapName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
-    TSubclassOf<AActor> ZombieClass;
+    TArray<TSubclassOf<AActor>> ZombieClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zombie Spawn|Settings")
     int32 InitialSpawnCount = 5;
@@ -122,6 +121,7 @@ class LASTSIGNAL_API AZombieSpawnPool : public AActor
     FVector GetRandomSpawnPoint() const;
     void CleanupDeadZombies();
     bool IsPlayerActor(AActor *Actor, APawn *&OutPlayerPawn) const;
+    bool IsPlayerInTrigger() const;
     void PrintDebugMessage(const FString &Message, FColor Color = FColor::Green) const;
 
     // UI
