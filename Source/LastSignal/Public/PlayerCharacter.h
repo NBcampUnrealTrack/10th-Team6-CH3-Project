@@ -45,6 +45,12 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     float GetCurrentHealth() const { return CurrentHealth; }
     void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
+    UFUNCTION(BlueprintCallable, Category = "Save")
+    void SaveStateToGameInstance();
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void RefillAllAmmo();
+
     AActor *NearbyInteractable = nullptr;
 
   protected:
@@ -276,5 +282,9 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     TWeakObjectPtr<APrimaryWeapon> BobWeapon;
     FVector BobWeaponBaseLocation = FVector::ZeroVector;
+
+ private:
+
+    void RestoreStateFromGameInstance();
 
 };

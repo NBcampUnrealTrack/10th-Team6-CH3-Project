@@ -84,7 +84,7 @@ void APlayerCharacter::BeginPlay()
             UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: Secondary weapon [%s] spawned and equipped in slot 1."), *SpawnedSecondary->GetName());
         }
     }
- 
+
     else
     {
         UE_LOG(LogTemp, Log, TEXT("PlayerCharacter: No WeaponClass specified in Blueprint defaults."));
@@ -95,16 +95,23 @@ void APlayerCharacter::BeginPlay()
         if (GI->bSavedIsSwapUnlocked && GI->SavedPrimaryWeaponClass)
         {
             EquipPrimaryWeapon(GI->SavedPrimaryWeaponClass);
+
+            if (WeaponSlots.IsValidIndex(GI->SavedEquippedSlotIndex) && WeaponSlots[GI->SavedEquippedSlotIndex])
+            {
+                SwitchWeapon(GI->SavedEquippedSlotIndex);
+            }
         }
         else
         {
-            bIsSwapUnlocked = false; // 상호작용 전 스왑 잠금
+            bIsSwapUnlocked = false;
         }
     }
     else
     {
         bIsSwapUnlocked = false;
     }
+
+    RestoreStateFromGameInstance();
 }
 	
 void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass)
@@ -567,4 +574,71 @@ void APlayerCharacter::UpdateMovementBob(float DeltaTime)
     FVector CameraLocation = FirstPersonCameraComponent->GetRelativeLocation();
     CameraLocation.Z = DefaultCameraRelativeZ + CameraCrouchOffsetZ + CameraOffsetZ * SmoothedBobStance;
     FirstPersonCameraComponent->SetRelativeLocation(CameraLocation);
+}
+
+void APlayerCharacter::SaveStateToGameInstance()
+{
+    ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance());
+    if (!GI)
+        return;
+
+    GI->SavedHP = CurrentHealth;
+    GI->SavedEquippedSlotIndex = CurrentWeaponIndex;
+
+    if (WeaponSlots.IsValidIndex(0) && WeaponSlots[0] && WeaponSlots[0]->GetCombatComponent())
+    {
+        GI->SavedPrimaryCurrentAmmo = WeaponSlots[0]->GetCombatComponent()->GetCurrentAmmo();
+        GI->SavedPrimaryReserveAmmo = WeaponSlots[0]->GetCombatComponent()->GetReserveAmmo();
+    }
+
+    if (WeaponSlots.IsValidIndex(1) && WeaponSlots[1] && WeaponSlots[1]->GetCombatComponent())
+    {
+        GI->SavedSecondaryCurrentAmmo = WeaponSlots[1]->GetCombatComponent()->GetCurrentAmmo();
+        GI->SavedSecondaryReserveAmmo = WeaponSlots[1]->GetCombatComponent()->GetReserveAmmo();
+    }
+}
+
+void APlayerCharacter::RestoreStateFromGameInstance()
+{
+    ULastSignalGameInstance *GI = Cast<ULastSignalGameInstance>(GetGameInstance());
+    if (!GI)
+        return;
+
+    if (GI->SavedPrimaryCurrentAmmo >= 0 && WeaponSlots.IsValidIndex(0) && WeaponSlots[0] && WeaponSlots[0]->GetCombatComponent())
+    {
+        WeaponSlots[0]->GetCombatComponent()->SetAmmo(GI->SavedPrimaryCurrentAmmo, GI->SavedPrimaryReserveAmmo);
+    }
+
+    if (GI->SavedSecondaryCurrentAmmo >= 0 && WeaponSlots.IsValidIndex(1) && WeaponSlots[1] && WeaponSlots[1]->GetCombatComponent())
+    {
+        WeaponSlots[1]->GetCombatComponent()->SetAmmo(GI->SavedSecondaryCurrentAmmo, GI->SavedSecondaryReserveAmmo);
+    }
+
+    if (EquippedWeapon)
+    {
+        EquippedWeapon->UpdateHUD();
+    }
+}
+
+void APlayerCharacter::RefillAllAmmo()
+{
+    for (APrimaryWeapon *Weapon : WeaponSlots)
+    {
+        if (Weapon && Weapon->GetCombatComponent())
+        {
+            UWeaponCombatComponent *Combat = Weapon->GetCombatComponent();
+
+            const int32 MaxMag = Combat->Stats.MagazineSize;
+            const int32 MaxReserve = Combat->Stats.InitialReserveAmmo;
+
+            Combat->SetAmmo(MaxMag, MaxReserve);
+        }
+    }
+
+    if (EquippedWeapon)
+    {
+        EquippedWeapon->UpdateHUD();
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerCharacter] 모든 무기의 탄약이 가득 찼습니다."));
 }
