@@ -619,3 +619,26 @@ void APlayerCharacter::RestoreStateFromGameInstance()
         EquippedWeapon->UpdateHUD();
     }
 }
+
+void APlayerCharacter::RefillAllAmmo()
+{
+    for (APrimaryWeapon *Weapon : WeaponSlots)
+    {
+        if (Weapon && Weapon->GetCombatComponent())
+        {
+            UWeaponCombatComponent *Combat = Weapon->GetCombatComponent();
+
+            const int32 MaxMag = Combat->Stats.MagazineSize;
+            const int32 MaxReserve = Combat->Stats.InitialReserveAmmo;
+
+            Combat->SetAmmo(MaxMag, MaxReserve);
+        }
+    }
+
+    if (EquippedWeapon)
+    {
+        EquippedWeapon->UpdateHUD();
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerCharacter] 모든 무기의 탄약이 가득 찼습니다."));
+}

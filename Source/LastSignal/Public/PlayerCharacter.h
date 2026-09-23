@@ -48,6 +48,9 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     UFUNCTION(BlueprintCallable, Category = "Save")
     void SaveStateToGameInstance();
 
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void RefillAllAmmo();
+
     AActor *NearbyInteractable = nullptr;
 
   protected:
