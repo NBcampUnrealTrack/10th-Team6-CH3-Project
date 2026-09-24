@@ -10,6 +10,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAICharacter.h"
 
@@ -81,6 +83,9 @@ void UWeaponCombatComponent::DeactivateWeapon()
     bEquipped = false;
     bTriggerHeld = false;
     bSwapping = false;
+    bSprintFireLocked = false;
+    bSprintKeyWasDown = false;
+    SprintFireUnlockTime = 0.0;
 
     if (UWorld *World = GetWorld())
     {
@@ -108,7 +113,8 @@ void UWeaponCombatComponent::DeactivateWeapon()
 
 void UWeaponCombatComponent::StartFire()
 {
-    if (!bEquipped || bTriggerHeld || bSwapping)
+    UpdateSprintFireLock();
+    if (!bEquipped || bTriggerHeld || bSwapping || bSprintFireLocked)
     {
         return;
     }
@@ -188,6 +194,12 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
 
 void UWeaponCombatComponent::TryFire()
 {
+    UpdateSprintFireLock();
+    if (bSprintFireLocked || bSwapping)
+    {
+        return;
+    }
+
     UWorld *World = GetWorld();
 
     if (!World || !bEquipped || !bTriggerHeld ||
@@ -620,7 +632,7 @@ void UWeaponCombatComponent::AddRecoil()
     const float VisualScale =
         Stats.VisualKickScale * StanceMultiplier;
 
-const auto RandomLocationKick = [](double A, double B) -> double
+    const auto RandomLocationKick = [](double A, double B) -> double
     {
         return FMath::FRandRange(
             static_cast<float>(FMath::Min(A, B)),
@@ -658,6 +670,46 @@ const auto RandomLocationKick = [](double A, double B) -> double
     VerticalPulseAngle = Stats.ShotVerticalAngle * StanceMultiplier;
 }
 
+bool UWeaponCombatComponent::UpdateSprintFireLock()
+{
+    UWorld *World = GetWorld();
+    APlayerController *PC = Shooter.IsValid()
+                                ? Cast<APlayerController>(Shooter->GetController())
+                                : nullptr;
+    if (!bEquipped || !World || !PC || !PC->IsLocalController())
+    {
+        return false;
+    }
+
+    // Match the Left Shift check used by the weapon Blueprint.
+    if (PC->IsInputKeyDown(EKeys::LeftShift))
+    {
+        if (!bSprintFireLocked)
+        {
+            StopFire();
+        }
+        bSprintFireLocked = true;
+        bSprintKeyWasDown = true;
+        return false;
+    }
+
+    const double Now = World->GetTimeSeconds();
+    if (bSprintKeyWasDown)
+    {
+        bSprintKeyWasDown = false;
+        SprintFireUnlockTime = Now + FMath::Max(0.0f, Stats.SprintToFireDelay);
+    }
+
+    // Also respect the existing shot interval and weapon swap delay.
+    if (bSprintFireLocked && !bSwapping &&
+        Now >= FMath::Max(SprintFireUnlockTime, NextFireTime))
+    {
+        bSprintFireLocked = false;
+        return true;
+    }
+    return false;
+}
+
 void UWeaponCombatComponent::TickComponent(
     float DeltaTime,
     ELevelTick TickType,
@@ -667,6 +719,16 @@ void UWeaponCombatComponent::TickComponent(
 
     if (bEquipped)
     {
+        if (UpdateSprintFireLock())
+        {
+            APlayerController *PC = Shooter.IsValid()
+                                        ? Cast<APlayerController>(Shooter->GetController())
+                                        : nullptr;
+            if (PC && PC->IsInputKeyDown(EKeys::LeftMouseButton))
+            {
+                StartFire();
+            }
+        }
         UpdateRecoil(DeltaTime);
     }
 }
@@ -708,7 +770,7 @@ void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
         VisualRotationCurrent, VisualRotationTarget,
         DeltaTime, FMath::Max(0.01f, Stats.VisualKickSpeed));
 
-float VerticalPulse = 0.0f;
+    float VerticalPulse = 0.0f;
 
     if (VerticalPulseStartTime >= 0.0 && GetWorld())
     {

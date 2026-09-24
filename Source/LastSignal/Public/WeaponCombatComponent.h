@@ -152,6 +152,10 @@ struct FWeaponStats
     // 무기 스왑시 발사 불가능한 시간
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
     float SwapDelay = 0.5f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Fire",
+              meta = (ClampMin = "0.0", DisplayName = "Sprint To Fire Delay"))
+    float SprintToFireDelay = 0.15f;
 };
 
 // 명중 여부와 결과를 발사 연출에 전달한다.
@@ -250,6 +254,8 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
   private:
     void TryFire();
+    // Returns true once when the sprint fire lock expires.
+    bool UpdateSprintFireLock();
     void ApplyDamage(const FHitResult &HitResult);
     void ReloadStep();
     void EndReload();
@@ -276,6 +282,9 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
     bool bTriggerHeld = false;
     bool bReloading = false;
     bool bSwapping = false;
+    bool bSprintFireLocked = false;
+    bool bSprintKeyWasDown = false;
+    double SprintFireUnlockTime = 0.0;
 
     double VerticalPulseStartTime = -1.0;
     float VerticalPulseDuration = 0.1f;
