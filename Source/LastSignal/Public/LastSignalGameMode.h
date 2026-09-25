@@ -21,6 +21,9 @@ public:
 
 	void OnGameOver();      // 게임오버(카운트다운 실패 or 플레이어 사망) 처리, 위젯 표시
     void OnEscapeSuccess();   // 탈출 타이머 0 = 클리어(성공) — 엔딩 연출은 나중에 붙일 예정 (제 예상은 클리어 뜨고 바로 엔딩 연출 on)
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Ending")
+	void OnEndingStarted(); // 탈출 성공 시점 알림 — 엔딩 슬라이드쇼는 BP_LastSignalGameMode에서 구현
     
 	UFUNCTION()
 	void OnPlayerDied(); // HP 0 됐을 때 호출되는 함수, 게임오버 처리용

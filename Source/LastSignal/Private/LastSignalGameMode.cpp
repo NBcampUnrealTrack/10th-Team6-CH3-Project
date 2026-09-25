@@ -238,6 +238,8 @@ void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리
 {
     if (GEngine)
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
+
+    OnEndingStarted(); // BP로 신호 → BP_LastSignalGameMode의 Event On Ending Started 실행
 }
 
 void ALastSignalGameMode::OnPlayerDied() // 플레이어 HP 0 = 게임오버, OnGameOver 재사용
