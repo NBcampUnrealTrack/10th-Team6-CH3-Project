@@ -381,11 +381,6 @@ void APlayerCharacter::Die() // 죽음 처리 (지금은 테스트 위해서 최
 
     UE_LOG(LogTemp, Warning, TEXT("Player Character DIED! Broadcasting OnDied event.")); // 로그로 죽음 처리 확인
 
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PLAYER DIED"));
-    }
-
     OnDied.Broadcast(); // 구독해둔 다른 클래스들(나중에 GameMode 등)에게 "죽었다"고 방송 (델리게이트라서 있는거에요)
 }
 

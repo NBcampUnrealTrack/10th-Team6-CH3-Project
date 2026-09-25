@@ -29,8 +29,6 @@ ULastSignalPlayerHUDComponent *ALastSignalGameMode::GetLocalHUDComponent() const
 void ALastSignalGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	if (GEngine)
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("GameMode BeginPlay"));
 
     ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
 
@@ -74,9 +72,6 @@ if (CurrentGameInstance) // 저장된 값이 있으면 KillCount/HP부터 복원
 
 void ALastSignalGameMode::OnGoalReached(FName NextLevel) // 클리어 트리거
 {
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, TEXT("CLEAR!"));
-
     // 레벨 넘어가기 직전, 지금 상태를 GameInstance에 스냅샷으로 저장 (GameInstance만 레벨 전환에서 안 죽고 살아남음)
     if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
     {
@@ -162,17 +157,6 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     if (!CurrentGameState)
         return;
 
-     if (GEngine) // 임시: TimerValue/KillCount/HP 확인용
-    {
-        float CurrentHP = 0.f;
-        if (APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
-            CurrentHP = CurrentPlayerCharacter->GetCurrentHealth();
-
-        GEngine->AddOnScreenDebugMessage(1, 1.1f, FColor::White,
-            FString::Printf(TEXT("Timer: %.0f | Kill: %d | HP: %.0f"),
-                CurrentGameState->TimerValue, CurrentGameState->KillCount, CurrentHP));
-    }
-
     switch (CurrentGameState->TimerMode)
     {
     case ETimerMode::Stopwatch:
@@ -215,9 +199,6 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
 
 void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 실패 / 플레이어 사망 공용)
 {
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("GAME OVER"));
-
     if (!GameOverClass) // 위젯 BP 안 지정돼 있으면 그냥 무시 (BP_LastSignalGameMode에 아직 설정 안 했을 때 대비)
         return;
 
@@ -236,9 +217,6 @@ void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 �
 
 void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
 {
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("ESCAPE SUCCESS!"));
-
     OnEndingStarted(); // BP로 신호 → BP_LastSignalGameMode의 Event On Ending Started 실행
 }
 
