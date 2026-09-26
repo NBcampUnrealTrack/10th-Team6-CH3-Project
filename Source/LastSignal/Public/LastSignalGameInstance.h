@@ -34,6 +34,21 @@ public:
     TSubclassOf<APrimaryWeapon> SavedPrimaryWeaponClass = nullptr;
 
     UPROPERTY(BlueprintReadWrite, Category = "Save")
+    int32 SavedEquippedSlotIndex = 1;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    int32 SavedPrimaryCurrentAmmo = -1;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    int32 SavedPrimaryReserveAmmo = -1;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    int32 SavedSecondaryCurrentAmmo = -1;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
+    int32 SavedSecondaryReserveAmmo = -1;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Save")
     float SavedSkillGauge = 0.0f;
 
   private:
