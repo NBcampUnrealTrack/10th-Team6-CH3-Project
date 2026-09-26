@@ -100,8 +100,16 @@ struct FWeaponStats
     float CameraKickSpeed = 25.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
-              meta = (ClampMin = "0.01"))
+              meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "100.0",
+                      DisplayName = "Camera Return Speed (Hip Fire)"))
     float CameraReturnSpeed = 8.0f;
+
+    // Zero inherits the existing return speed, preserving saved weapon tuning.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "100.0",
+                      DisplayName = "ADS Camera Return Speed",
+                      ToolTip = "ADS recovery speed. 0 uses the Hip Fire return speed. Higher values recover faster."))
+    float ADSCameraReturnSpeed = 0.0f;
 
     // 총마다 메시 반동의 전체 세기를 조절한다.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
@@ -113,8 +121,16 @@ struct FWeaponStats
     float VisualKickSpeed = 25.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
-              meta = (ClampMin = "0.01"))
+              meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "100.0",
+                      DisplayName = "Visual Return Speed (Hip Fire)"))
     float VisualReturnSpeed = 12.0f;
+
+    // Zero inherits the existing return speed, preserving saved weapon tuning.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "100.0",
+                      DisplayName = "ADS Visual Return Speed",
+                      ToolTip = "ADS recovery speed. 0 uses the Hip Fire return speed. Higher values recover faster."))
+    float ADSVisualReturnSpeed = 0.0f;
 
     // 부모 좌표계 기준, 단위 cm.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
@@ -124,6 +140,13 @@ struct FWeaponStats
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
               meta = (DisplayName = "Location Kick Max (위치 반동 최댓값)"))
     FVector LocationKickMax = FVector(-5.0f, 2.0f, 0.6f);
+
+    // Additional ADS multiplier for parent-space X translation only.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0",
+                      DisplayName = "ADS X Location Kick Multiplier",
+                      ToolTip = "Extra X location kick multiplier after the existing ADS reduction. 1 preserves current recoil; 0 disables new ADS X kicks."))
+    float ADSXLocationKickMultiplier = 1.0f;
 
     // 발당 상하 랜덤 회전 범위: -설정값 ~ +설정값.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
@@ -148,6 +171,32 @@ struct FWeaponStats
               meta = (UIMin = "-10.0", UIMax = "10.0",
                       DisplayName = "Shot Vertical Angle (발당 수직 회전 각도)"))
     float ShotVerticalAngle = 0.0f;
+
+    // Rise and return multipliers independently scale their RPM-based durations.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "5.0",
+                      DisplayName = "Vertical Pulse Kick Speed (Hip Fire)",
+                      ToolTip = "Rise speed multiplier: 1 preserves original timing, 2 rises twice as fast, 0.5 rises half as fast. Does not change angle or return duration. Selected when firing."))
+    float VerticalPulseKickSpeed = 1.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0",
+                      DisplayName = "ADS Vertical Pulse Kick Speed",
+                      ToolTip = "ADS pulse rise speed multiplier. 0 uses the Hip Fire value. Selected when firing."))
+    float ADSVerticalPulseKickSpeed = 0.0f;
+
+    // Scales the falling portion only, independently of the rise speed.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "5.0",
+                      DisplayName = "Vertical Pulse Return Speed (Hip Fire)",
+                      ToolTip = "Recovery speed multiplier: 1 preserves original timing, 2 returns twice as fast, 0.5 returns half as fast. Selected when firing."))
+    float VerticalPulseReturnSpeed = 1.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recoil",
+              meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0",
+                      DisplayName = "ADS Vertical Pulse Return Speed",
+                      ToolTip = "ADS pulse recovery speed multiplier. 0 uses the Hip Fire value. Selected when firing."))
+    float ADSVerticalPulseReturnSpeed = 0.0f;
 
     // 무기 스왑시 발사 불가능한 시간
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
@@ -288,6 +337,7 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
     double VerticalPulseStartTime = -1.0;
     float VerticalPulseDuration = 0.1f;
+    float VerticalPulseRiseDuration = 0.025f;
     float VerticalPulseAngle = 0.0f;
     double NextFireTime = 0.0;
 

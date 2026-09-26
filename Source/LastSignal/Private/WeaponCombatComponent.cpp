@@ -639,11 +639,17 @@ void UWeaponCombatComponent::AddRecoil()
             static_cast<float>(FMath::Max(A, B)));
     };
 
-    VisualLocationTarget += FVector(
-                                RandomLocationKick(Stats.LocationKickMin.X, Stats.LocationKickMax.X),
-                                RandomLocationKick(Stats.LocationKickMin.Y, Stats.LocationKickMax.Y),
-                                RandomLocationKick(Stats.LocationKickMin.Z, Stats.LocationKickMax.Z)) *
-                            VisualScale;
+    FVector LocationKick = FVector(
+                               RandomLocationKick(Stats.LocationKickMin.X, Stats.LocationKickMax.X),
+                               RandomLocationKick(Stats.LocationKickMin.Y, Stats.LocationKickMax.Y),
+                               RandomLocationKick(Stats.LocationKickMin.Z, Stats.LocationKickMax.Z)) *
+                           VisualScale;
+
+    if (bAiming)
+    {
+        LocationKick.X *= FMath::Max(0.0f, Stats.ADSXLocationKickMultiplier);
+    }
+    VisualLocationTarget += LocationKick;
 
     // 기존 회전 범위를 유지하면서 앉았을 때 강도를 줄인다.
     // FRotator 생성자 순서는 Pitch, Yaw, Roll이다.
@@ -661,9 +667,21 @@ void UWeaponCombatComponent::AddRecoil()
     VisualRotationTarget =
         (VisualRotationTarget.Quaternion() * Kick.Quaternion()).Rotator();
 
-    // 발사 간격 안에 한 번 들렸다 돌아오도록 한다.
+    // Select both pulse speeds at shot time so changing ADS mid-pulse cannot
+    // change the current pulse's phase discontinuously.
+    const float ShotInterval = 60.0f / FMath::Max(1.0f, Stats.RPM);
+    const float PulseKickSpeed = FMath::Max(
+        0.01f, bAiming && Stats.ADSVerticalPulseKickSpeed > 0.0f
+                   ? Stats.ADSVerticalPulseKickSpeed
+                   : Stats.VerticalPulseKickSpeed);
+    const float PulseRecoverySpeed = FMath::Max(
+        0.01f, bAiming && Stats.ADSVerticalPulseReturnSpeed > 0.0f
+                   ? Stats.ADSVerticalPulseReturnSpeed
+                   : Stats.VerticalPulseReturnSpeed);
     VerticalPulseStartTime = GetWorld()->GetTimeSeconds();
-    VerticalPulseDuration = 60.0f / FMath::Max(1.0f, Stats.RPM);
+    VerticalPulseRiseDuration = ShotInterval * 0.25f / PulseKickSpeed;
+    VerticalPulseDuration = VerticalPulseRiseDuration +
+                            ShotInterval * 0.75f / PulseRecoverySpeed;
 
     // 전용 각도를 사용하고 기존 조준·앉기 감소만 적용한다.
     // VisualKickScale은 중복 적용하지 않는다.
@@ -735,6 +753,15 @@ void UWeaponCombatComponent::TickComponent(
 
 void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
 {
+    const float CameraRecoverySpeed = FMath::Max(
+        0.01f, bAiming && Stats.ADSCameraReturnSpeed > 0.0f
+                   ? Stats.ADSCameraReturnSpeed
+                   : Stats.CameraReturnSpeed);
+    const float VisualRecoverySpeed = FMath::Max(
+        0.01f, bAiming && Stats.ADSVisualReturnSpeed > 0.0f
+                   ? Stats.ADSVisualReturnSpeed
+                   : Stats.VisualReturnSpeed);
+
     const FVector2D PreviousCamera = CameraCurrent;
 
     CameraCurrent.X = FMath::FInterpTo(
@@ -756,11 +783,11 @@ void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
 
     CameraTarget.X = FMath::FInterpTo(
         CameraTarget.X, 0.0f,
-        DeltaTime, FMath::Max(0.01f, Stats.CameraReturnSpeed));
+        DeltaTime, CameraRecoverySpeed);
 
     CameraTarget.Y = FMath::FInterpTo(
         CameraTarget.Y, 0.0f,
-        DeltaTime, FMath::Max(0.01f, Stats.CameraReturnSpeed));
+        DeltaTime, CameraRecoverySpeed);
 
     VisualLocationCurrent = FMath::VInterpTo(
         VisualLocationCurrent, VisualLocationTarget,
@@ -777,23 +804,21 @@ void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
         const double Elapsed =
             GetWorld()->GetTimeSeconds() - VerticalPulseStartTime;
 
-        const float Progress = FMath::Clamp(
-            static_cast<float>(Elapsed) / FMath::Max(0.001f, VerticalPulseDuration),
-            0.0f,
-            1.0f);
-
-        // 발사 간격의 앞 25% 동안 들리고, 나머지 동안 복귀한다.
-        constexpr float PeakTime = 0.25f;
-
-        const float Phase = Progress < PeakTime
-                                ? Progress / PeakTime
-                                : (1.0f - Progress) / (1.0f - PeakTime);
+        const float PulseTime = FMath::Max(0.0f, static_cast<float>(Elapsed));
+        const float RiseDuration = FMath::Max(SMALL_NUMBER, VerticalPulseRiseDuration);
+        const float ReturnDuration = FMath::Max(
+            SMALL_NUMBER, VerticalPulseDuration - VerticalPulseRiseDuration);
+        const float Phase = FMath::Clamp(
+            PulseTime < VerticalPulseRiseDuration
+                ? PulseTime / RiseDuration
+                : 1.0f - (PulseTime - VerticalPulseRiseDuration) / ReturnDuration,
+            0.0f, 1.0f);
 
         // 시작·정점·종료에서 부드럽게 연결되는 곡선.
         const float Shape = Phase * Phase * (3.0f - 2.0f * Phase);
         VerticalPulse = VerticalPulseAngle * Shape;
 
-        if (Progress >= 1.0f)
+        if (PulseTime >= VerticalPulseDuration)
         {
             VerticalPulseStartTime = -1.0;
         }
@@ -816,11 +841,11 @@ void UWeaponCombatComponent::UpdateRecoil(float DeltaTime)
     // 목표값 자체도 0으로 보간해서 원래 자세로 복귀시킨다.
     VisualLocationTarget = FMath::VInterpTo(
         VisualLocationTarget, FVector::ZeroVector,
-        DeltaTime, FMath::Max(0.01f, Stats.VisualReturnSpeed));
+        DeltaTime, VisualRecoverySpeed);
 
     VisualRotationTarget = FMath::RInterpTo(
         VisualRotationTarget, FRotator::ZeroRotator,
-        DeltaTime, FMath::Max(0.01f, Stats.VisualReturnSpeed));
+        DeltaTime, VisualRecoverySpeed);
 }
 
 void UWeaponCombatComponent::ResetRecoil()
