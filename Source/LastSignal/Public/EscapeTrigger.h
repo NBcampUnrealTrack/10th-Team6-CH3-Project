@@ -25,6 +25,9 @@ protected:
     UPROPERTY(VisibleAnywhere, Category = "Escape") // 이미 한 번 발동했으면 다시 발동 안 되게 막는 플래그 (왔다갔다해도 3분 타이머 안 리셋되게)
     bool bEscapeStarted = false;
 
+    UPROPERTY(EditAnywhere, Category = "Escape")
+    FText ObjectiveAfterStart; // 탈출 타이머 시작 후 바뀔 목표 문구
+
     UFUNCTION()
     void OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
     UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep,

@@ -11,6 +11,13 @@
 ALastSignalGameMode::ALastSignalGameMode()
 {
 	GameStateClass = ALastSignalGameState::StaticClass();
+
+	// 레벨별 시작 목표 문구 (BP_LastSignalGameMode Class Defaults에서 수정 가능)
+	LevelObjectives.Add(TEXT("L_SafeZone_Spawn"), FText::FromString(TEXT("구조 신호를 따라 지하철로 이동하자.")));
+	LevelObjectives.Add(TEXT("L_Subway"), FText::FromString(TEXT("지하철을 통과해 목표 지점으로 이동하자.")));
+	LevelObjectives.Add(TEXT("L_SafeZone_Building"), FText::FromString(TEXT("무전기를 찾자.")));
+	LevelObjectives.Add(TEXT("L_RuinedBuilding"), FText::FromString(TEXT("제한시간 내에 옥상으로 올라가자.")));
+	LevelObjectives.Add(TEXT("L_Rooftop"), FText::FromString(TEXT("헬기 착륙 지점으로 이동하자.")));
 }
 
 ULastSignalPlayerHUDComponent *ALastSignalGameMode::GetLocalHUDComponent() const

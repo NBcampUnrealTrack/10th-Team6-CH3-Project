@@ -19,6 +19,7 @@ ARadio::ARadio()
     TriggerBox->SetBoxExtent(FVector(100.f, 100.f, 100.f));
     TriggerBox->SetCollisionProfileName(TEXT("Trigger"));
 
+    ObjectiveAfterActivation = FText::FromString(TEXT("제한시간 내에 옥상으로 올라가자."));
 }
 
 
@@ -72,6 +73,7 @@ void ARadio::Interact_Implementation(AActor *Interactor)
             {
                 HUD->HealToFull();
                 HUD->SwitchToCountdown(900.f);
+                HUD->SetMissionObjective(ObjectiveAfterActivation);
             }
         }
     }

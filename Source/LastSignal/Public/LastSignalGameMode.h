@@ -31,6 +31,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UUserWidget> GameOverClass; // 게임오버 위젯 BP 지정용
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TMap<FName, FText> LevelObjectives; // 레벨 이름 → 시작 목표 문구 (PlayerController가 HUD 만들 때 읽어감)
+
 	FTimerHandle TimerHandle; // 타이머 취소,갱신할 때 쓰는 꼬리표
 
 	void StartStopwatch();                        // 게임 시작 시 호출 — 0부터 증가

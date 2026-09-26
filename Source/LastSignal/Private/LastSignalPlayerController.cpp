@@ -3,6 +3,7 @@
 #include "LastSignalPlayerController.h"
 #include "LastSignalHUDWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
+#include "LastSignalGameMode.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -24,8 +25,13 @@ void ALastSignalPlayerController::BeginPlay()
 			HUDWidgetInstance->BindHUDComponent(HUDComponent);
 			HUDWidgetInstance->AddToViewport();
 
-			// 초기 미션 목표 예시 (실제로는 스테이지 매니저/게임모드에서 호출)
-			HUDComponent->SetMissionObjective(FText::FromString(TEXT("구조 신호를 따라 지하철로 이동하라")));
+			// 시작 목표 문구: GameMode의 레벨별 목록에서 현재 레벨 것을 찾아 표시
+			// (GameMode BeginPlay에서 하면 위젯 바인딩 전이라 방송을 놓침 → 위젯 바인딩 직후인 여기서 호출)
+			if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
+			{
+				if (const FText *Objective = GameMode->LevelObjectives.Find(FName(UGameplayStatics::GetCurrentLevelName(this))))
+					HUDComponent->SetMissionObjective(*Objective);
+			}
 		}
 	}
 }

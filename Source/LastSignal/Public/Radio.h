@@ -37,5 +37,8 @@ protected:
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Radio")
     void OnRadioActivated(); // 상호작용 성공 시점, 연출은 나중에 Blueprint에서 구현
+
+    UPROPERTY(EditAnywhere, Category = "Radio")
+    FText ObjectiveAfterActivation; // 무전기 사용 후 바뀔 목표 문구
 };
 
