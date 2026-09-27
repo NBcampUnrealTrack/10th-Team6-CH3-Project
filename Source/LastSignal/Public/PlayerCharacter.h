@@ -29,6 +29,12 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     UPROPERTY(BlueprintAssignable, Category = "Health|Events")
     FOnDiedDelegate OnDied;
 
+    UFUNCTION(BlueprintCallable, Category = "Player|Control")
+    void SetPlayerControlLocked(bool bLock);
+
+    UFUNCTION(BlueprintPure, Category = "Player|Control")
+    bool IsControlLocked() const { return bIsControlLocked; }
+
     // --- [무기 시스템] ---
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     void SwitchWeapon(int32 SlotIndex);
@@ -55,6 +61,9 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
   protected:
     virtual void BeginPlay() override;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Control")
+    bool bIsControlLocked = false;
 
     UPROPERTY(VisibleAnywhere, Category = "Camera") // 1인칭 카메라 시점
     TObjectPtr<UCameraComponent> FirstPersonCameraComponent;

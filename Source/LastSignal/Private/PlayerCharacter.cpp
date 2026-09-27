@@ -113,6 +113,35 @@ void APlayerCharacter::BeginPlay()
 
     RestoreStateFromGameInstance();
 }
+
+void APlayerCharacter::SetPlayerControlLocked(bool bLock)
+{
+    bIsControlLocked = bLock;
+
+    if (bLock)
+    {
+        StopSprint();
+        if (bIsCrouched)
+        {
+            UnCrouch();
+        }
+
+        if (GetCharacterMovement())
+        {
+            GetCharacterMovement()->DisableMovement();
+            GetCharacterMovement()->StopMovementImmediately();
+        }
+
+    }
+    else
+    {
+        if (GetCharacterMovement())
+        {
+            GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+        }
+
+    }
+}
 	
 void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponClass)
 {
@@ -149,7 +178,7 @@ void APlayerCharacter::EquipPrimaryWeapon(TSubclassOf<APrimaryWeapon> NewWeaponC
 
 void APlayerCharacter::OnWeaponSlot1()
 {
-    if (!bIsSwapUnlocked || !WeaponSlots[0])
+    if (bIsControlLocked || !bIsSwapUnlocked || !WeaponSlots[0])
         return;
 
     SwitchWeapon(0);
@@ -157,7 +186,7 @@ void APlayerCharacter::OnWeaponSlot1()
 
 void APlayerCharacter::OnWeaponSlot2()
 {
-    if (!bIsSwapUnlocked || !WeaponSlots[1])
+    if (bIsControlLocked || !bIsSwapUnlocked || !WeaponSlots[1])
         return;
 
     SwitchWeapon(1);
