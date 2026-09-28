@@ -14,7 +14,7 @@ AEscapeTrigger::AEscapeTrigger()
     TriggerBox->SetBoxExtent(FVector(100.f, 100.f, 100.f)); // 크기 임시값, 헬기존 배치 보고 조절
     TriggerBox->SetCollisionProfileName(TEXT("Trigger"));
 
-    ObjectiveAfterStart = FText::FromString(TEXT("헬기가 내려올 때까지 생존해라."));
+    ObjectiveAfterStart = FText::FromString(TEXT("헬기가 내려올 때까지 생존해라"));
 }
 
 void AEscapeTrigger::BeginPlay()
