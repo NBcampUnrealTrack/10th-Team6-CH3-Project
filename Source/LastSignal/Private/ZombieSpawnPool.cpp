@@ -10,8 +10,8 @@
 #include "TimerManager.h"
 
 // UI 관련 헤더
-#include "LastSignalPlayerController.h"      
-#include "LastSignalPlayerHUDComponent.h" 
+#include "LastSignalPlayerController.h"
+#include "LastSignalPlayerHUDComponent.h"
 
 AZombieSpawnPool::AZombieSpawnPool()
 {
@@ -21,7 +21,7 @@ AZombieSpawnPool::AZombieSpawnPool()
     DefaultRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultRootComponent"));
     SetRootComponent(DefaultRootComponent);
 
-    // 트리거 박스 (오직 플레이어 진입/퇴장 오버랩 감지용)
+    // 트리거 박스 (플레이어 최초 진입 감지용)
     TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
     TriggerBox->SetupAttachment(RootComponent);
     TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -29,7 +29,7 @@ AZombieSpawnPool::AZombieSpawnPool()
     TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
     TriggerBox->SetGenerateOverlapEvents(true);
 
-    // 스폰 박스 (오직 좀비 스폰 위치 영역 계산용 - 콜리전 차단)
+    // 스폰 박스 (좀비 스폰 위치 영역 계산용)
     SpawnBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnBox"));
     SpawnBox->SetupAttachment(RootComponent);
     SpawnBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -40,22 +40,19 @@ void AZombieSpawnPool::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 맵 이름 기반 데이터 테이블 설정 로드
     LoadMapSpecificData();
 
-    // 비활성화된 맵이면 작동 중단
     if (!bIsActivePool)
     {
         return;
     }
 
-    // 트리거 박스 오버랩 이벤트 바인딩
     if (TriggerBox)
     {
         TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AZombieSpawnPool::OnOverlapBegin);
         TriggerBox->OnComponentEndOverlap.AddDynamic(this, &AZombieSpawnPool::OnOverlapEnd);
 
-        // 플레이어 스폰 지연을 고려한 초기 오버랩 검사
+        // 게임 시작 시 이미 플레이어가 스폰 영역 안에 있는지 딜레이 검사
         FTimerHandle InitialCheckHandle;
         GetWorld()->GetTimerManager().SetTimer(
             InitialCheckHandle, [this]()
@@ -133,7 +130,6 @@ void AZombieSpawnPool::LoadMapSpecificData()
         PeriodicSpawnCount = FoundData->PeriodicSpawnCount;
         SpawnInterval = FoundData->SpawnInterval;
         MaxZombieCount = FoundData->MaxZombieCount;
-        // UI 추가
         MissionObjectiveText = FoundData->MissionObjectiveText;
 
         bIsActivePool = true;
@@ -183,34 +179,16 @@ void AZombieSpawnPool::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActo
 
 void AZombieSpawnPool::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor *OtherActor, UPrimitiveComponent *OtherComp, int32 OtherBodyIndex)
 {
-    if (!bIsActivePool)
-        return;
-
-    APawn *PlayerPawn = nullptr;
-
-    if (IsPlayerActor(OtherActor, PlayerPawn))
-    {
-        if (!IsPlayerInTrigger())
-        {
-            StopSpawningProcess();
-        }
-    }
+    // 버티기 모드이므로 퇴장하더라도 스폰을 중지하지 않습니다.
 }
 
 void AZombieSpawnPool::StartSpawningProcess(APawn *PlayerPawn)
 {
-    if (!IsPlayerInTrigger())
-    {
-        StopSpawningProcess();
-        return;
-    }
-
     if (bPlayerInside)
         return;
 
     bPlayerInside = true;
-    UpdateMissionObjective(); // ← UI 추가
-
+    UpdateMissionObjective();
 
     // 최초 수량 스폰
     if (!bInitialSpawnDone)
@@ -219,7 +197,7 @@ void AZombieSpawnPool::StartSpawningProcess(APawn *PlayerPawn)
         bInitialSpawnDone = true;
     }
 
-    // 주기적으로 스폰 타이머 작동
+    // 영구 스폰 타이머 작동
     if (GetWorld() && SpawnInterval > 0.0f)
     {
         GetWorld()->GetTimerManager().SetTimer(
@@ -263,23 +241,12 @@ bool AZombieSpawnPool::IsPlayerInTrigger() const
 
 void AZombieSpawnPool::SpawnPeriodicZombies()
 {
-    if (!bPlayerInside || !IsPlayerInTrigger())
-    {
-        StopSpawningProcess();
-        return;
-    }
-
+    // 활성화된 이후에는 플레이어 위치와 상관없이 무한 스폰
     SpawnZombieBatch(PeriodicSpawnCount);
 }
 
 void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 {
-    if (!IsPlayerInTrigger())
-    {
-        StopSpawningProcess();
-        return;
-    }
-
     if (ZombieClass.Num() == 0 || !GetWorld())
     {
         return;
@@ -299,12 +266,6 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 
     for (int32 i = 0; i < ActualSpawnCount; ++i)
     {
-        if (!IsPlayerInTrigger())
-        {
-            StopSpawningProcess();
-            break;
-        }
-
         int32 RandomIndex = FMath::RandRange(0, ZombieClass.Num() - 1);
         TSubclassOf<AActor> SelectedClass = ZombieClass[RandomIndex];
 
@@ -379,56 +340,32 @@ void AZombieSpawnPool::PrintDebugMessage(const FString &Message, FColor Color) c
     }
 }
 
-// UI 관련 함수
 void AZombieSpawnPool::UpdateMissionObjective() const
 {
     UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] UpdateMissionObjective called. Text=%s"), *MissionObjectiveText.ToString());
 
     if (MissionObjectiveText.IsEmpty())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] MissionObjectiveText is EMPTY!"));
         return;
     }
 
     APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0);
     if (!PC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] PlayerController is null!"));
         return;
     }
 
     ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC);
     if (!LastSignalPC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] Cast to LastSignalPlayerController FAILED!"));
         return;
     }
 
     ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent();
     if (!HUD)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] HUDComponent is null!"));
         return;
     }
 
     HUD->SetMissionObjective(MissionObjectiveText);
-    UE_LOG(LogTemp, Warning, TEXT("[ZombieSpawnPool] SetMissionObjective called successfully!"));
 }
-
-// {
-//    if (MissionObjectiveText.IsEmpty())
-//    {
-//        return;
-//    }
-//
-//    if (APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0))
-//    {
-//        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
-//        {
-//            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
-//            {
-//                HUD->SetMissionObjective(MissionObjectiveText);
-//            }
-//        }
-//    }
-//}
