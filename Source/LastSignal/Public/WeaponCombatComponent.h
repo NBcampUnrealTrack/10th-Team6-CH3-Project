@@ -285,6 +285,9 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float ADSRecoilMultiplier = 0.65f;
 
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void SetAmmo(int32 InCurrent, int32 InReserve);
+
   protected:
     virtual void BeginPlay() override;
 

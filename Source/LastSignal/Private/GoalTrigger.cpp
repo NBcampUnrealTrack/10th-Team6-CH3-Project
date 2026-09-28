@@ -1,6 +1,7 @@
-#include "GoalTrigger.h"
+﻿#include "GoalTrigger.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "PlayerCharacter.h"
 #include "LastSignalGameMode.h"
 
 AGoalTrigger::AGoalTrigger()
@@ -16,22 +17,25 @@ AGoalTrigger::AGoalTrigger()
 
 void AGoalTrigger::BeginPlay()
 {
-	Super::BeginPlay();
+        Super::BeginPlay();
 
-	TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AGoalTrigger::OnBoxBeginOverlap);
-	
+        TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &AGoalTrigger::OnBoxBeginOverlap);
 }
 
-void AGoalTrigger::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-	const FHitResult& SweepResult)
+void AGoalTrigger::OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
+                                     UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+                                     const FHitResult &SweepResult)
 {
-	if (OtherActor != UGameplayStatics::GetPlayerPawn(this, 0))
-		return;
+        APlayerCharacter *Player = Cast<APlayerCharacter>(OtherActor);
+        if (!Player)
+            return;
 
-	ALastSignalGameMode* GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
+        Player->SaveStateToGameInstance();
 
-	if (GameMode)
+        ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
+        if (GameMode)
+        {
             GameMode->OnGoalReached(NextLevelName);
+        }
 }
 

@@ -2,6 +2,8 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "LastSignalGameMode.h"
+#include "LastSignalPlayerController.h"
+#include "LastSignalPlayerHUDComponent.h"
 
 AEscapeTrigger::AEscapeTrigger()
 {
@@ -12,6 +14,7 @@ AEscapeTrigger::AEscapeTrigger()
     TriggerBox->SetBoxExtent(FVector(100.f, 100.f, 100.f)); // 크기 임시값, 헬기존 배치 보고 조절
     TriggerBox->SetCollisionProfileName(TEXT("Trigger"));
 
+    ObjectiveAfterStart = FText::FromString(TEXT("헬기가 내려올 때까지 생존해라."));
 }
 
 void AEscapeTrigger::BeginPlay()
@@ -38,5 +41,11 @@ void AEscapeTrigger::OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AAct
     {
         bEscapeStarted = true;
         GameMode->StartEscapeTimer(180.f); // 3분(180초)
+    }
+
+    if (ALastSignalPlayerController *PlayerController = Cast<ALastSignalPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+    {
+        if (ULastSignalPlayerHUDComponent *HUD = PlayerController->GetHUDComponent())
+            HUD->SetMissionObjective(ObjectiveAfterStart);
     }
 }

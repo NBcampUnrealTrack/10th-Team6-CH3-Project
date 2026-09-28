@@ -5,36 +5,6 @@
 #include "LastSignalGameInstance.h"
 #include "TimerManager.h"
 
-// 디버그 출력용
-void DisplaySkillStateDebug(ESkillState NewState)
-{
-    if (!GEngine)
-        return;
-
-    FString DebugMessage;
-    FColor MessageColor = FColor::White;
-
-    switch (NewState)
-    {
-    case ESkillState::Charging:
-        DebugMessage = TEXT("스킬 상태: 충전 중...");
-        MessageColor = FColor::Yellow;
-        break;
-
-    case ESkillState::Ready:
-        DebugMessage = TEXT("스킬 준비 완료~!");
-        MessageColor = FColor::Green;
-        break;
-
-    case ESkillState::Active:
-        DebugMessage = TEXT("스킬 발동 중!");
-        MessageColor = FColor::Red;
-        break;
-    }
-
-    GEngine->AddOnScreenDebugMessage(1, 5.0f, MessageColor, DebugMessage);
-}
-
 USkillComponent::USkillComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
@@ -104,7 +74,6 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
         {
             CurrentState = ESkillState::Ready;
             OnSkillStateChanged.Broadcast(CurrentState);
-            DisplaySkillStateDebug(CurrentState); // 디버그 텍스트 출력용
         }
     }
 }
@@ -131,7 +100,6 @@ void USkillComponent::OnZombieKilled()
     {
         CurrentState = ESkillState::Ready;
         OnSkillStateChanged.Broadcast(CurrentState);
-        DisplaySkillStateDebug(CurrentState);
     }
 }
 
@@ -181,7 +149,6 @@ void USkillComponent::ActivateSkill()
     }
 
     OnSkillStateChanged.Broadcast(CurrentState);
-    DisplaySkillStateDebug(CurrentState);
     OnSkillValueChanged.Broadcast(CurrentSkillValue, MaxSkillValue);
 
     if (UWorld *World = GetWorld())
@@ -199,6 +166,5 @@ void USkillComponent::DeactivateSkill()
 
     CurrentState = ESkillState::Charging;
     OnSkillStateChanged.Broadcast(CurrentState);
-    DisplaySkillStateDebug(CurrentState);
 }
 
