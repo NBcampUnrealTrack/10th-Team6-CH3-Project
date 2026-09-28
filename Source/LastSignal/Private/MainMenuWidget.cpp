@@ -22,8 +22,8 @@
 
 namespace
 {
-    const FLinearColor Amber(1.0f, 0.6f, 0.1f, 1.0f);
-    const FLinearColor Ink(0.92f, 0.92f, 0.92f, 1.0f);
+    const FLinearColor MenuAmber(1.0f, 0.6f, 0.1f, 1.0f);
+    const FLinearColor MenuInk(0.92f, 0.92f, 0.92f, 1.0f);
 
     constexpr float VideoEndSeconds = 12.0f;  // 영상에서 카메라가 멈추는 시점 (MainMenuIntro.mp4 = 12초 + 마지막 장면 2초)
     constexpr float TitleFadeStart = 10.0f;   // 제목이 서서히 나타나기 시작하는 시점
@@ -46,7 +46,7 @@ namespace
         Font.Size = Size;
         Font.LetterSpacing = LetterSpacing;
         Text->SetFont(Font);
-        Text->SetColorAndOpacity(FSlateColor(Ink));
+        Text->SetColorAndOpacity(FSlateColor(MenuInk));
         Text->SetShadowOffset(FVector2D(2.0f, 2.0f));
         Text->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.7f));
         FSlateFontInfo OutlinedFont = Text->GetFont(); // 밝은 창문 위에서도 읽히게 얇은 검은 테두리
@@ -272,22 +272,22 @@ void UMainMenuWidget::HandleQuitClicked()
 
 void UMainMenuWidget::HandleStartHovered()
 {
-    StartText->SetColorAndOpacity(FSlateColor(Amber));
+    StartText->SetColorAndOpacity(FSlateColor(MenuAmber));
 }
 
 void UMainMenuWidget::HandleStartUnhovered()
 {
-    StartText->SetColorAndOpacity(FSlateColor(Ink));
+    StartText->SetColorAndOpacity(FSlateColor(MenuInk));
 }
 
 void UMainMenuWidget::HandleQuitHovered()
 {
-    QuitText->SetColorAndOpacity(FSlateColor(Amber));
+    QuitText->SetColorAndOpacity(FSlateColor(MenuAmber));
 }
 
 void UMainMenuWidget::HandleQuitUnhovered()
 {
-    QuitText->SetColorAndOpacity(FSlateColor(Ink));
+    QuitText->SetColorAndOpacity(FSlateColor(MenuInk));
 }
 
 // ===================== 일시정지 =====================
@@ -328,7 +328,7 @@ void UPauseMenuWidget::BuildWidgetTree()
     // 메인메뉴와 같은 LAST SIGNAL 제목 + 아래 작은 주황 PAUSED
     Menu->AddChildToVerticalBox(MakeMenuText(WidgetTree, TEXT("LAST SIGNAL"), 96, 120))->SetHorizontalAlignment(HAlign_Left);
     UTextBlock *PausedLabel = MakeMenuText(WidgetTree, TEXT("PAUSED"), 20, 450);
-    PausedLabel->SetColorAndOpacity(FSlateColor(Amber));
+    PausedLabel->SetColorAndOpacity(FSlateColor(MenuAmber));
     UVerticalBoxSlot *PausedSlot = Menu->AddChildToVerticalBox(PausedLabel);
     PausedSlot->SetHorizontalAlignment(HAlign_Left);
     PausedSlot->SetPadding(FMargin(4.0f, 10.0f, 0.0f, 0.0f));
@@ -389,22 +389,22 @@ void UPauseMenuWidget::HandleMainMenuClicked()
 
 void UPauseMenuWidget::HandleResumeHovered()
 {
-    ResumeText->SetColorAndOpacity(FSlateColor(Amber));
+    ResumeText->SetColorAndOpacity(FSlateColor(MenuAmber));
 }
 
 void UPauseMenuWidget::HandleResumeUnhovered()
 {
-    ResumeText->SetColorAndOpacity(FSlateColor(Ink));
+    ResumeText->SetColorAndOpacity(FSlateColor(MenuInk));
 }
 
 void UPauseMenuWidget::HandleMainMenuHovered()
 {
-    MainMenuText->SetColorAndOpacity(FSlateColor(Amber));
+    MainMenuText->SetColorAndOpacity(FSlateColor(MenuAmber));
 }
 
 void UPauseMenuWidget::HandleMainMenuUnhovered()
 {
-    MainMenuText->SetColorAndOpacity(FSlateColor(Ink));
+    MainMenuText->SetColorAndOpacity(FSlateColor(MenuInk));
 }
 
 // ===================== 엔딩 크레딧 =====================
@@ -494,7 +494,7 @@ void UCreditsWidget::BuildWidgetTree()
     auto AddStat = [&](const TCHAR *Label, const FString &Value, float TopPadding)
     {
         UTextBlock *LabelText = MakeMenuText(WidgetTree, Label, 22, 450);
-        LabelText->SetColorAndOpacity(FSlateColor(Amber));
+        LabelText->SetColorAndOpacity(FSlateColor(MenuAmber));
         LabelText->SetJustification(ETextJustify::Center);
         UVerticalBoxSlot *LabelSlot = Stats->AddChildToVerticalBox(LabelText);
         LabelSlot->SetHorizontalAlignment(HAlign_Center);
@@ -528,7 +528,7 @@ void UCreditsWidget::BuildWidgetTree()
     auto AddHeader = [&](const TCHAR *Header)
     {
         UTextBlock *HeaderText = MakeMenuText(WidgetTree, Header, 22, 450);
-        HeaderText->SetColorAndOpacity(FSlateColor(Amber));
+        HeaderText->SetColorAndOpacity(FSlateColor(MenuAmber));
         HeaderText->SetJustification(ETextJustify::Center);
         AddLine(HeaderText, 120.0f);
     };
@@ -541,12 +541,12 @@ void UCreditsWidget::BuildWidgetTree()
     AddHeader(TEXT("DEVELOPED BY"));
     for (const FCreditMember &Member : TeamMembers)
     {
-        AddLine(MakeBodyText(WidgetTree, Member.Name, 34, Ink), 44.0f);
+        AddLine(MakeBodyText(WidgetTree, Member.Name, 34, MenuInk), 44.0f);
         AddLine(MakeBodyText(WidgetTree, Member.Role, 20, Soft), 6.0f);
     }
 
     AddHeader(TEXT("VOICE"));
-    AddLine(MakeBodyText(WidgetTree, TEXT("Narration generated with ElevenLabs"), 24, Ink), 36.0f);
+    AddLine(MakeBodyText(WidgetTree, TEXT("Narration generated with ElevenLabs"), 24, MenuInk), 36.0f);
     AddLine(MakeBodyText(WidgetTree, TEXT("elevenlabs.io"), 20, Soft), 6.0f);
 
     AddHeader(TEXT("ASSETS VIA FAB"));
