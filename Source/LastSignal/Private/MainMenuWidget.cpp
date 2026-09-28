@@ -1,6 +1,7 @@
 #include "MainMenuWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "LastSignalPlayerController.h"
+#include "LastSignalGameInstance.h"
 #include "Components/BackgroundBlur.h"
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
@@ -166,6 +167,13 @@ void UMainMenuWidget::BuildWidgetTree()
 void UMainMenuWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+    // 메인메뉴 음악 (크레딧에서 넘어오면 크레딧 음악과 교차). 환경음(헬기)은 정리
+    if (ULastSignalGameInstance *GameInstance = GetGameInstance<ULastSignalGameInstance>())
+    {
+        GameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_MainMenu.BGM_MainMenu")), 2.0f, 0.5f);
+        GameInstance->StopAmbience(1.0f);
+    }
 
     // 영상은 에셋이 아니라 파일 경로로 연다 (패키징: DefaultGame.ini의 DirectoriesToAlwaysStageAsNonUFS=Movies)
     MediaSource = NewObject<UFileMediaSource>(this);
@@ -570,6 +578,13 @@ void UCreditsWidget::BuildWidgetTree()
 void UCreditsWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+    // 크레딧 음악으로 교차, 헬기 소리는 서서히 끔
+    if (ULastSignalGameInstance *GameInstance = GetGameInstance<ULastSignalGameInstance>())
+    {
+        GameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Credits.BGM_Credits")), 3.0f, 0.5f);
+        GameInstance->StopAmbience(4.0f);
+    }
 
     SetIsFocusable(true);
     if (APlayerController *PlayerController = GetOwningPlayer())

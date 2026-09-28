@@ -4,12 +4,15 @@
 #include "LastSignalHUDWidget.h"
 #include "InteractPromptWidget.h"
 #include "HudWatchWidget.h"
+#include "HudHealthWidget.h"
 #include "MainMenuWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
+#include "LastSignalGameInstance.h"
 #include "PlayerCharacter.h"
 #include "PrimaryWeapon.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Kismet/GameplayStatics.h"
 
 ALastSignalPlayerController::ALastSignalPlayerController()
@@ -32,15 +35,24 @@ void ALastSignalPlayerController::BeginPlay()
 
 			// [F] 상호작용 안내 (무전기, 무기 상자, 탄약 상자, 메디킷 공통) — 코드로 만든 위젯이라 WBP 지정 없음
 			if (UInteractPromptWidget *InteractPrompt = CreateWidget<UInteractPromptWidget>(this, UInteractPromptWidget::StaticClass()))
-				InteractPrompt->AddToViewport(1);
+				InteractPrompt->AddToViewport(0); // HUD와 같은 층 → 나중에 뜨는 인트로/엔딩 슬라이드쇼가 위를 덮음
 
 			// 오른쪽 위 손목시계(시간 + 처치 수). WBP의 원래 시간/점수 글자는 숨기고 이걸로 대체
 			if (UHudWatchWidget *Watch = CreateWidget<UHudWatchWidget>(this, UHudWatchWidget::StaticClass()))
 			{
-				Watch->AddToViewport(1); // 화면이 먼저 만들어져야 현재 값 표시가 됨
+				Watch->AddToViewport(0); // HUD와 같은 층 (슬라이드쇼가 덮게). 화면이 먼저 만들어져야 현재 값 표시가 됨
 				Watch->BindHUDComponent(HUDComponent);
+				WatchWidget = Watch;
 			}
-			for (const TCHAR *OldTextName : {TEXT("Text_Time"), TEXT("Text_Score")})
+
+			// 왼쪽 아래 체력 (군인 그림이 체력만큼 차오름). WBP의 원래 HP바는 숨기고 이걸로 대체
+			if (UHudHealthWidget *Health = CreateWidget<UHudHealthWidget>(this, UHudHealthWidget::StaticClass()))
+			{
+				Health->AddToViewport(0);
+				Health->BindHUDComponent(HUDComponent);
+				HealthWidget = Health;
+			}
+			for (const TCHAR *OldTextName : {TEXT("Text_Time"), TEXT("Text_Score"), TEXT("ProgressBar_HP")})
 			{
 				if (UWidget *OldText = HUDWidgetInstance->GetWidgetFromName(OldTextName))
 					OldText->SetVisibility(ESlateVisibility::Collapsed);
@@ -76,6 +88,62 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 		const bool bAiming = Weapon && Weapon->IsAiming();
 		Crosshair->SetRenderOpacity(bAiming ? 0.0f : 1.0f);
 	}
+
+	// 슬라이드쇼/페이드인 중엔 시계, 체력 숨김 (Hidden으로 하면 위젯 Tick이 멈춰서 투명도로)
+	const bool bSlideshowOnScreen = IsStorySlideshowOnScreen();
+	for (UWidget *CodeHudWidget : {WatchWidget.Get(), HealthWidget.Get()})
+	{
+		if (CodeHudWidget)
+			CodeHudWidget->SetRenderOpacity(IsInCutscene() ? 0.0f : 1.0f);
+	}
+
+	// 인트로가 끝난 순간: 검은 화면에서 2초 동안 밝아짐. 그동안은 조작 불가, HUD도 숨긴 채로
+	if (bStorySlideshowWasOnScreen && !bSlideshowOnScreen && UGameplayStatics::GetCurrentLevelName(this) == TEXT("L_SafeZone_Spawn"))
+	{
+		constexpr float FadeSeconds = 2.0f;
+		if (PlayerCameraManager)
+			PlayerCameraManager->StartCameraFade(1.0f, 0.0f, FadeSeconds, FLinearColor::Black, false, /*bHoldWhenFinished*/ false);
+		if (APawn *ControlledPawn = GetPawn())
+			ControlledPawn->DisableInput(this); // 이동/시점/사격 막음 (ESC 일시정지는 컨트롤러 입력이라 그대로)
+		bShowMouseCursor = false;
+		SetInputMode(FInputModeGameOnly());
+		GetWorldTimerManager().SetTimer(IntroFadeTimerHandle, this, &ALastSignalPlayerController::FinishIntroFade, FadeSeconds, false);
+	}
+	bStorySlideshowWasOnScreen = bSlideshowOnScreen;
+}
+
+void ALastSignalPlayerController::FinishIntroFade()
+{
+	// 다 밝아짐 → 여기서부터 게임 시작: HUD 표시, 조작 가능, 시간 0부터
+	// (레벨 BP가 인트로 시작 때 HUD를 숨기고 다시 안 켜서, 여기서 켬)
+	if (HUDWidgetInstance)
+		HUDWidgetInstance->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (APawn *ControlledPawn = GetPawn())
+		ControlledPawn->EnableInput(this);
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
+
+	if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
+		GameMode->StartStopwatch();
+	if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+		CurrentGameInstance->GameStartRealSeconds = FPlatformTime::Seconds(); // 게임오버/크레딧의 플레이 시간도 인트로 제외
+}
+
+bool ALastSignalPlayerController::IsInCutscene() const
+{
+	return IsStorySlideshowOnScreen() || GetWorldTimerManager().IsTimerActive(IntroFadeTimerHandle);
+}
+
+bool ALastSignalPlayerController::IsStorySlideshowOnScreen() const
+{
+	// 레벨 BP/게임모드 BP가 만든 위젯이라 C++에서 클래스를 모름 → 경로로 찾음 (아직 안 불러와졌으면 = 화면에 없음)
+	const TSubclassOf<UUserWidget> SlideshowClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(TEXT("/Game/UI/HUD/WBP_StorySlideshow.WBP_StorySlideshow_C"))).Get();
+	if (!SlideshowClass)
+		return false;
+
+	TArray<UUserWidget *> Slideshows;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(const_cast<ALastSignalPlayerController *>(this), Slideshows, SlideshowClass, /*TopLevelOnly = 화면에 붙은 것만*/ true);
+	return Slideshows.Num() > 0;
 }
 
 void ALastSignalPlayerController::TryTriggerSpecialAttack()

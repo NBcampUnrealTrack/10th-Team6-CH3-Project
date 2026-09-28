@@ -40,6 +40,8 @@ public:
 
 	FTimerHandle TimerHandle; // 타이머 취소,갱신할 때 쓰는 꼬리표
 
+	double ClearRealSeconds = 0.0; // 탈출 성공한 실제 시각 — 크레딧 플레이 시간을 여기서 고정 (엔딩 슬라이드쇼 시간 제외)
+
 	void StartStopwatch();                        // 게임 시작 시 호출 — 0부터 증가
     void StartCountdown(float DurationSeconds);   // 라디오 상호작용 시 호출 — 감소 시작
     void StartEscapeTimer(float DurationSeconds); // 헬기 구역 도착 시 호출 — 감소 시작

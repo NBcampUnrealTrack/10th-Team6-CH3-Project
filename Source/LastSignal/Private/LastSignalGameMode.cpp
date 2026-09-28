@@ -68,7 +68,7 @@ void ALastSignalGameMode::ShowCredits()
         return;
 
     if (const ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
-        Credits->PlayTimeSeconds = static_cast<float>(FPlatformTime::Seconds() - CurrentGameInstance->GameStartRealSeconds);
+        Credits->PlayTimeSeconds = static_cast<float>((ClearRealSeconds > 0.0 ? ClearRealSeconds : FPlatformTime::Seconds()) - CurrentGameInstance->GameStartRealSeconds);
     if (const ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
         Credits->KillCount = CurrentGameState->KillCount;
 
@@ -80,6 +80,18 @@ void ALastSignalGameMode::BeginPlay()
 	Super::BeginPlay();
 
     ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
+
+    // 레벨별 배경음악: 인트로(스폰) 작게 → 지하철~폐건물은 음악 없음 → 옥상 (메인메뉴는 메인메뉴 위젯이 직접 틂)
+    if (CurrentGameInstance)
+    {
+        const FString LevelName = UGameplayStatics::GetCurrentLevelName(this);
+        if (LevelName == TEXT("L_SafeZone_Spawn"))
+            CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Intro.BGM_Intro")), 2.0f, 0.3f); // 나레이션이 잘 들리게 작게
+        else if (LevelName == TEXT("L_Rooftop"))
+            CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Rooftop.BGM_Rooftop")), 3.0f, 0.4f);
+        else if (LevelName != TEXT("L_MainMenu"))
+            CurrentGameInstance->StopMusic(3.0f);
+    }
 
     APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)); // PlayerCharacter를 if문 밖에서 미리 캐스팅 — 아래 HP복원이랑 OnDied 구독 둘 다에서 씀 (중복 캐스팅 방지)
 
@@ -209,6 +221,11 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
     if (!CurrentGameState)
         return;
 
+    // 인트로/엔딩 슬라이드쇼 + 인트로 뒤 페이드인 중에는 시간 멈춤
+    if (const ALastSignalPlayerController *PlayerController = Cast<ALastSignalPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+        if (PlayerController->IsInCutscene())
+            return;
+
     switch (CurrentGameState->TimerMode)
     {
     case ETimerMode::Stopwatch:
@@ -267,13 +284,22 @@ void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 �
         GameOverWidget->KillCount = CurrentGameState->KillCount;
 
     GetWorldTimerManager().ClearTimer(TimerHandle);            // 게임오버 순간 시계(스톱워치/카운트다운) 멈춤
-    GameOverWidget->AddToViewport(50);                         // 손목시계(1), HUD보다 위 → 블러가 시계까지 덮음
+    GameOverWidget->AddToViewport(50);                         // 손목시계, HUD보다 위 → 블러가 시계까지 덮음
     CurrentPlayerController->SetInputMode(FInputModeUIOnly()); // 조작 입력을 UI(버튼)로만 받게 전환
     CurrentPlayerController->bShowMouseCursor = true;          // 버튼 클릭하려면 마우스 커서 보여야 함
 }
 
 void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
 {
+    ClearRealSeconds = FPlatformTime::Seconds(); // 플레이 시간은 여기서 끝 (시계는 UpdateTimer에서 이미 멈춤)
+
+    // 엔딩 음악 + 헬기 소리 (헬기는 크게 시작해서 40초 동안 점점 멀어짐). 크레딧이 뜨면 크레딧 음악으로 교체됨
+    if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+    {
+        CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Ending.BGM_Ending")), 2.0f, 0.35f);
+        CurrentGameInstance->PlayAmbience(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Helicopter.Helicopter")), 0.8f, 40.0f, 0.05f);
+    }
+
     OnEndingStarted(); // BP로 신호 → BP_LastSignalGameMode의 Event On Ending Started 실행
 }
 
