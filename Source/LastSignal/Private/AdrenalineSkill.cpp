@@ -69,14 +69,6 @@ void UAdrenalineSkill::ActivateSkill()
 
 void UAdrenalineSkill::DeactivateSkill()
 {
-    if (DeactivationSound)
-    {
-            if (AActor *Owner = GetOwner())
-            {
-            UGameplayStatics::SpawnSoundAttached(DeactivationSound, Owner->GetRootComponent());
-            }
-    }
-
     // 스킬 종료 시에만 이펙트 제거
     if (ActiveNiagaraEffect)
     {
