@@ -555,7 +555,7 @@ void UCreditsWidget::BuildWidgetTree()
 
     AddHeader(TEXT("ADDITIONAL"));
     AddLine(MakeBodyText(WidgetTree, TEXT("Vintage Radio Transceiver – Poly Haven (CC0)"), 20, Soft), 36.0f);
-    AddLine(MakeBodyText(WidgetTree, TEXT("Fonts: Pretendard · Black Ops One (SIL Open Font License)"), 20, Soft), 12.0f);
+    AddLine(MakeBodyText(WidgetTree, TEXT("Fonts: Pretendard · Black Ops One · DSEG7 (SIL Open Font License)"), 20, Soft), 12.0f);
     AddLine(MakeBodyText(WidgetTree, TEXT("Made with Unreal Engine 5"), 20, Soft), 12.0f);
 
     UTextBlock *Thanks = MakeMenuText(WidgetTree, TEXT("THANK YOU FOR PLAYING"), 44, 200);
