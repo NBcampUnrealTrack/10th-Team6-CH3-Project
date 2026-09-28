@@ -20,7 +20,6 @@ AM4A1::AM4A1()
     S.ReloadTime = 2.5f;
     S.TacReloadTime = 1.8f;
     S.SwapDelay = 0.5f;
-    S.bEnableChamberRound = true;
 
     S.PitchKick = FVector2D(-2.0f, -1.5f);
     S.YawKick = FVector2D(-0.4f, 0.4f);
@@ -32,10 +31,7 @@ AM4A1::AM4A1()
     S.VisualKickSpeed = 25.0f;
     S.VisualReturnSpeed = 12.0f;
 
-    S.BaseSpreadAngle = 0.4f;
     S.MaxSpreadAngle = 3.5f;
-    S.SpreadIncreasePerShot = 0.3f;
-    S.SpreadRecoverySpeed = 9.0f;
 }
 
 ASR25::ASR25()
@@ -55,7 +51,6 @@ ASR25::ASR25()
     S.ReloadTime = 3.0f;
     S.TacReloadTime = 2.2f;
     S.SwapDelay = 0.5f;
-    S.bEnableChamberRound = true;
 
     S.PitchKick = FVector2D(-2.2f, -1.8f);
     S.YawKick = FVector2D(-0.6f, 0.6f);
@@ -67,10 +62,7 @@ ASR25::ASR25()
     S.VisualKickSpeed = 25.0f;
     S.VisualReturnSpeed = 10.0f;
 
-    S.BaseSpreadAngle = 0.05f;
     S.MaxSpreadAngle = 1.8f;
-    S.SpreadIncreasePerShot = 0.5f;
-    S.SpreadRecoverySpeed = 14.0f;
 }
 
 AMP153::AMP153()
@@ -95,7 +87,6 @@ AMP153::AMP153()
     S.ReloadTime = 0.65f;
     S.TacReloadTime = 0.65f;
     S.SwapDelay = 0.5f;
-    S.bEnableChamberRound = false;
 
     S.PitchKick = FVector2D(-6.0f, -4.5f);
     S.YawKick = FVector2D(-1.5f, 1.5f);
@@ -106,11 +97,8 @@ AMP153::AMP153()
     S.VisualKickScale = 3.0f;
     S.VisualKickSpeed = 20.0f;
     S.VisualReturnSpeed = 6.0f;
-    
-    S.BaseSpreadAngle = 3.5f;
+
     S.MaxSpreadAngle = 6.0f;
-    S.SpreadIncreasePerShot = 0.8f;
-    S.SpreadRecoverySpeed = 6.0f;
 }
 
 AGlock19::AGlock19()
@@ -122,17 +110,16 @@ AGlock19::AGlock19()
     S.ReloadType = EWeaponReloadType::Magazine;
 
     S.Damage = 18.0f;
-    S.RPM = 300.0f;
+    S.RPM = 450.0f;
     S.Range = 8000.0f;
 
-    S.MagazineSize = 12;
-    S.InitialReserveAmmo = 48;
+    S.MagazineSize = 20;
+    S.InitialReserveAmmo = 120;
     S.ReloadTime = 1.8f;
     S.TacReloadTime = 1.2f;
     S.SwapDelay = 0.5f;
-    S.bEnableChamberRound = true;
 
-    S.PitchKick = FVector2D(-1.5f, -1.0f);
+    S.PitchKick = FVector2D(-5.5f, -5.0f);
     S.YawKick = FVector2D(-0.3f, 0.3f);
 
     S.CameraKickSpeed = 25.0f;
@@ -142,8 +129,5 @@ AGlock19::AGlock19()
     S.VisualKickSpeed = 30.0f;
     S.VisualReturnSpeed = 15.0f;
 
-    S.BaseSpreadAngle = 0.2f;
     S.MaxSpreadAngle = 2.5f;
-    S.SpreadIncreasePerShot = 0.4f;
-    S.SpreadRecoverySpeed = 10.0f;
 }

@@ -112,6 +112,20 @@ void APlayerCharacter::BeginPlay()
     }
 
     RestoreStateFromGameInstance();
+
+    const float InitialPercent = (MaxHealth > 0.0f) ? (CurrentHealth / MaxHealth) : 0.0f;
+    OnHPUpdated.Broadcast(CurrentHealth, MaxHealth, InitialPercent);
+
+    if (APlayerController *PC = Cast<APlayerController>(GetController()))
+    {
+        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+            {
+                HUD->SetHP(CurrentHealth);
+            }
+        }
+    }
 }
 
 void APlayerCharacter::SetPlayerControlLocked(bool bLock)
@@ -126,12 +140,16 @@ void APlayerCharacter::SetPlayerControlLocked(bool bLock)
             UnCrouch();
         }
 
+        if (EquippedWeapon && EquippedWeapon->GetCombatComponent())
+        {
+            EquippedWeapon->GetCombatComponent()->StopFire();
+        }
+
         if (GetCharacterMovement())
         {
             GetCharacterMovement()->DisableMovement();
             GetCharacterMovement()->StopMovementImmediately();
         }
-
     }
     else
     {
@@ -139,7 +157,6 @@ void APlayerCharacter::SetPlayerControlLocked(bool bLock)
         {
             GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
         }
-
     }
 }
 	
@@ -391,7 +408,9 @@ float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &Damag
     CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.0f, MaxHealth); // 체력 깎기. Clamp로 0~MaxHealth 범위를 벗어나지 않게 고정
 
     // UI 추가
-    UE_LOG(LogTemp, Log, TEXT("Player took %.0f damage, Health: %.0f/%.0f"), ActualDamage, CurrentHealth, MaxHealth); // 로그로 데미지량과 체력 상태 확인
+    const float Percent01 = (MaxHealth > 0.0f) ? (CurrentHealth / MaxHealth) : 0.0f;
+    OnHPUpdated.Broadcast(CurrentHealth, MaxHealth, Percent01);
+
     if (APlayerController *PC = Cast<APlayerController>(GetController()))
     {
         if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
@@ -402,9 +421,8 @@ float APlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const &Damag
             }
         }
     }
-    // 여기까지
 
-    if (CurrentHealth <= 0.0f) // 체력 0 이하가 되면 죽음 처리
+    if (CurrentHealth <= 0.0f)
     {
         Die();
     }
@@ -663,6 +681,32 @@ void APlayerCharacter::RefillAllAmmo()
     {
         EquippedWeapon->UpdateHUD();
     }
+}
 
-    UE_LOG(LogTemp, Log, TEXT("[PlayerCharacter] 모든 무기의 탄약이 가득 찼습니다."));
+void APlayerCharacter::Heal(float Amount)
+{
+    if (Amount <= 0.0f || CurrentHealth <= 0.0f)
+        return;
+
+    CurrentHealth = FMath::Clamp(CurrentHealth + Amount, 0.0f, MaxHealth);
+    UE_LOG(LogTemp, Log, TEXT("[PlayerCharacter] 체력 %.0f 회복! 현재 체력: %.0f/%.0f"), Amount, CurrentHealth, MaxHealth);
+
+    const float Percent01 = (MaxHealth > 0.0f) ? (CurrentHealth / MaxHealth) : 0.0f;
+
+    OnHPUpdated.Broadcast(CurrentHealth, MaxHealth, Percent01);
+
+    if (APlayerController *PC = Cast<APlayerController>(GetController()))
+    {
+        if (ALastSignalPlayerController *LastSignalPC = Cast<ALastSignalPlayerController>(PC))
+        {
+            if (ULastSignalPlayerHUDComponent *HUD = LastSignalPC->GetHUDComponent())
+            {
+                HUD->SetHP(CurrentHealth);
+            }
+        }
+    }
+}
+void APlayerCharacter::RestoreFullHealth()
+{
+    Heal(MaxHealth);
 }

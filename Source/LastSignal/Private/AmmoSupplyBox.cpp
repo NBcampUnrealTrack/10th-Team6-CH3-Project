@@ -56,6 +56,21 @@ void AAmmoSupplyBox::Interact_Implementation(AActor *InteractingActor)
     if (!Player)
         return;
 
+    if (CurrentCharges <= 0)
+    {
+        if (DepletedSound)
+        {
+            UGameplayStatics::PlaySoundAtLocation(this, DepletedSound, GetActorLocation());
+        }
+        if (DepletedMontage)
+        {
+            Player->PlayAnimMontage(DepletedMontage);
+        }
+
+        OnSupplyDepleted(Player);
+        return;
+    }
+
     CachedPlayer = Player;
     bIsInteracting = true;
 
@@ -115,20 +130,6 @@ void AAmmoSupplyBox::CompleteInteraction()
             }
             Destroy();
         }
-    }
-    else
-    {
-
-        if (DepletedSound)
-        {
-            UGameplayStatics::PlaySoundAtLocation(this, DepletedSound, GetActorLocation());
-        }
-        if (DepletedMontage)
-        {
-            CachedPlayer->PlayAnimMontage(DepletedMontage);
-        }
-
-        OnSupplyDepleted(CachedPlayer);
     }
 
     bIsInteracting = false;
