@@ -14,7 +14,7 @@
 namespace
 {
     // F 키캡: 옅은 검정 채우기 + 흰 테두리. Opacity로 테두리 선까지 같이 투명하게
-    FSlateRoundedBoxBrush MakeKeyCapBrush(float Opacity)
+    FSlateRoundedBoxBrush MakePromptKeyCapBrush(float Opacity)
     {
         return FSlateRoundedBoxBrush(FLinearColor(0.0f, 0.0f, 0.0f, 0.25f), 6.0f, FLinearColor(0.95f, 0.95f, 0.95f, 0.9f * Opacity), 1.5f);
     }
@@ -60,7 +60,7 @@ void UInteractPromptWidget::BuildWidgetTree()
     KeyCapSize->SetWidthOverride(34.0f);
     KeyCapSize->SetHeightOverride(34.0f);
     KeyCap = WidgetTree->ConstructWidget<UBorder>();
-    KeyCap->SetBrush(MakeKeyCapBrush(0.0f));
+    KeyCap->SetBrush(MakePromptKeyCapBrush(0.0f));
     KeyCap->SetHorizontalAlignment(HAlign_Center);
     KeyCap->SetVerticalAlignment(VAlign_Center);
     KeyCap->SetContent(MakePromptText(WidgetTree, TEXT("F"), 16, true));
@@ -97,6 +97,6 @@ void UInteractPromptWidget::NativeTick(const FGeometry &MyGeometry, float InDelt
     CurrentOpacity = FMath::FInterpTo(CurrentOpacity, bShow ? 1.0f : 0.0f, InDeltaTime, 15.0f);
     SetRenderOpacity(CurrentOpacity);
     // 둥근 테두리의 선 색은 위젯 투명도/BrushColor가 안 먹음(DrawElementTypes.cpp) → 선 색의 알파를 직접 바꾼 브러시로 교체
-    KeyCap->SetBrush(MakeKeyCapBrush(CurrentOpacity));
+    KeyCap->SetBrush(MakePromptKeyCapBrush(CurrentOpacity));
     // Hidden으로 숨기면 Slate가 Tick을 안 불러서 다시 나타나지 못함 → 항상 HitTestInvisible로 두고 투명도로만 숨긴다
 }

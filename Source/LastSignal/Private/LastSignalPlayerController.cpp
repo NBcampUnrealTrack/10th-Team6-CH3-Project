@@ -3,6 +3,8 @@
 #include "LastSignalPlayerController.h"
 #include "LastSignalHUDWidget.h"
 #include "InteractPromptWidget.h"
+#include "HudWatchWidget.h"
+#include "MainMenuWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
 #include "Blueprint/UserWidget.h"
@@ -30,6 +32,18 @@ void ALastSignalPlayerController::BeginPlay()
 			if (UInteractPromptWidget *InteractPrompt = CreateWidget<UInteractPromptWidget>(this, UInteractPromptWidget::StaticClass()))
 				InteractPrompt->AddToViewport(1);
 
+			// 오른쪽 위 손목시계(시간 + 처치 수). WBP의 원래 시간/점수 글자는 숨기고 이걸로 대체
+			if (UHudWatchWidget *Watch = CreateWidget<UHudWatchWidget>(this, UHudWatchWidget::StaticClass()))
+			{
+				Watch->AddToViewport(1); // 화면이 먼저 만들어져야 현재 값 표시가 됨
+				Watch->BindHUDComponent(HUDComponent);
+			}
+			for (const TCHAR *OldTextName : {TEXT("Text_Time"), TEXT("Text_Score")})
+			{
+				if (UWidget *OldText = HUDWidgetInstance->GetWidgetFromName(OldTextName))
+					OldText->SetVisibility(ESlateVisibility::Collapsed);
+			}
+
 			// 시작 목표 문구: GameMode의 레벨별 목록에서 현재 레벨 것을 찾아 표시
 			// (GameMode BeginPlay에서 하면 위젯 바인딩 전이라 방송을 놓침 → 위젯 바인딩 직후인 여기서 호출)
 			if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
@@ -56,14 +70,16 @@ void ALastSignalPlayerController::TogglePauseMenu()
 
     if (bNewPaused)
     {
-        if (PauseMenuClass) // WBP_Pause 아직 없으면 위젯 생성은 그냥 스킵 (Pause 자체는 동작)
-        {
-            PauseMenuWidgetInstance = CreateWidget<UUserWidget>(this, PauseMenuClass);
-            if (PauseMenuWidgetInstance)
-                PauseMenuWidgetInstance->AddToViewport();
-        }
+        // 코드로 만든 일시정지 화면(UPauseMenuWidget)을 쓴다. PauseMenuClass(WBP_Pause)는 더 이상 사용 안 함
+        PauseMenuWidgetInstance = CreateWidget<UPauseMenuWidget>(this, UPauseMenuWidget::StaticClass());
 
-        SetInputMode(FInputModeUIOnly());
+        FInputModeUIOnly InputMode;
+        if (PauseMenuWidgetInstance)
+        {
+            PauseMenuWidgetInstance->AddToViewport(20);
+            InputMode.SetWidgetToFocus(PauseMenuWidgetInstance->TakeWidget()); // P/ESC로 계속하기를 받으려면 포커스 필요
+        }
+        SetInputMode(InputMode);
         bShowMouseCursor = true;
     }
     else

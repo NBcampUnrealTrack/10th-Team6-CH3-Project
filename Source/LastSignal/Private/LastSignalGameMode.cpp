@@ -7,6 +7,7 @@
 
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
+#include "MainMenuWidget.h"
 
 ALastSignalGameMode::ALastSignalGameMode()
 {
@@ -39,14 +40,38 @@ void ALastSignalGameMode::InitGame(const FString &MapName, const FString &Option
 
     // 첫 레벨로 들어오면 새 게임 → 이전 판 저장값 초기화
     // (InitGame은 모든 액터 BeginPlay보다 먼저 실행 → 캐릭터가 무기/탄약을 복원하기 전에 지워짐)
+    ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
     if (UGameplayStatics::GetCurrentLevelName(this) == TEXT("L_SafeZone_Spawn"))
     {
-        if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+        if (CurrentGameInstance)
         {
             CurrentGameInstance->ResetSaveData();
+            CurrentGameInstance->GameStartRealSeconds = FPlatformTime::Seconds(); // 크레딧의 PLAY TIME 기준
             UE_LOG(LogTemp, Log, TEXT("[GameMode] 새 게임 시작 - GameInstance 저장값 초기화"));
         }
     }
+    else if (CurrentGameInstance && CurrentGameInstance->GameStartRealSeconds <= 0.0)
+    {
+        CurrentGameInstance->GameStartRealSeconds = FPlatformTime::Seconds(); // 중간 레벨에서 바로 PIE를 시작한 경우
+    }
+}
+
+void ALastSignalGameMode::ShowCredits()
+{
+    APlayerController *PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+    if (!PlayerController)
+        return;
+
+    UCreditsWidget *Credits = CreateWidget<UCreditsWidget>(PlayerController, UCreditsWidget::StaticClass());
+    if (!Credits)
+        return;
+
+    if (const ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+        Credits->PlayTimeSeconds = static_cast<float>(FPlatformTime::Seconds() - CurrentGameInstance->GameStartRealSeconds);
+    if (const ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
+        Credits->KillCount = CurrentGameState->KillCount;
+
+    Credits->AddToViewport(50);
 }
 
 void ALastSignalGameMode::BeginPlay()

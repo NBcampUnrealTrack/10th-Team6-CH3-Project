@@ -24,6 +24,10 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Ending")
 	void OnEndingStarted(); // 탈출 성공 시점 알림 — 엔딩 슬라이드쇼는 BP_LastSignalGameMode에서 구현
+
+	// 엔딩 슬라이드쇼가 끝나면 BP에서 호출: 기록(플레이 타임, 처치 수) → 올라가는 크레딧 → 메인메뉴
+	UFUNCTION(BlueprintCallable, Category = "Ending")
+	void ShowCredits();
     
 	UFUNCTION()
 	void OnPlayerDied(); // HP 0 됐을 때 호출되는 함수, 게임오버 처리용
