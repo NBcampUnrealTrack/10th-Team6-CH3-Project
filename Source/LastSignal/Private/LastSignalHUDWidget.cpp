@@ -2,6 +2,7 @@
 
 #include "LastSignalHUDWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
+#include "Components/TextBlock.h"
 
 void ULastSignalHUDWidget::BindHUDComponent(ULastSignalPlayerHUDComponent* InComponent)
 {
@@ -41,6 +42,10 @@ void ULastSignalHUDWidget::HandleHPChanged(float CurrentHP, float MaxHP)
 void ULastSignalHUDWidget::HandleAmmoChanged(FLastSignalWeaponHUDData WeaponData)
 {
 	OnAmmoUpdated(WeaponData);
+
+	// BP는 "현재 / 탄창 크기"로 써서 약실 1발이 있으면 31/30처럼 보임 → "현재 탄창 / 남은 총알"로 덮어씀 (BP 수정 없이)
+	if (UTextBlock *AmmoText = Cast<UTextBlock>(GetWidgetFromName(TEXT("Text_AmmoCount"))))
+		AmmoText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), WeaponData.CurrentAmmo, WeaponData.ReserveAmmo)));
 }
 
 void ULastSignalHUDWidget::HandleScoreChanged(int32 NewScore)
@@ -76,7 +81,9 @@ void ULastSignalHUDWidget::HandleSpecialAttackEnded()
 
 void ULastSignalHUDWidget::HandleKillConfirmed(FText VictimName)
 {
-	OnKillFeedEntryAdded(VictimName);
+	// 제출 빌드에서 "적 처치: 좀비" 킬 로그는 뺌 (처치 수는 오른쪽 위 손목시계 KILLS로 보여 줌)
+	// 다시 쓰려면 아래 줄 주석 해제
+	// OnKillFeedEntryAdded(VictimName);
 }
 
 void ULastSignalHUDWidget::HandleHitMarkerRequested()
