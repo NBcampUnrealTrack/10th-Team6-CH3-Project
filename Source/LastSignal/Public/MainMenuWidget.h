@@ -165,3 +165,47 @@ private:
     bool bScrolling = false;
     bool bLeaving = false;
 };
+
+// 게임오버 화면. 게임 화면을 흑백 + 블러로, GAME OVER + 기록(SURVIVED, KILLS) + RETRY / MAIN MENU.
+// RETRY에 마우스를 올리면 "RETRY?"로 바뀜. GameMode::OnGameOver가 생성한다.
+UCLASS()
+class LASTSIGNAL_API UGameOverWidget : public UUserWidget
+{
+    GENERATED_BODY()
+
+public:
+    // AddToViewport 전에 채워야 함
+    float PlayTimeSeconds = 0.0f;
+    int32 KillCount = 0;
+
+protected:
+    virtual TSharedRef<SWidget> RebuildWidget() override;
+    virtual void NativeConstruct() override; // 플레이어 카메라를 흑백으로
+
+private:
+    void BuildWidgetTree();
+
+    UFUNCTION()
+    void HandleRetryClicked();
+
+    UFUNCTION()
+    void HandleMainMenuClicked();
+
+    UFUNCTION()
+    void HandleRetryHovered();
+
+    UFUNCTION()
+    void HandleRetryUnhovered();
+
+    UFUNCTION()
+    void HandleMainMenuHovered();
+
+    UFUNCTION()
+    void HandleMainMenuUnhovered();
+
+    UPROPERTY()
+    TObjectPtr<UTextBlock> RetryText;
+
+    UPROPERTY()
+    TObjectPtr<UTextBlock> MainMenuText;
+};

@@ -2,6 +2,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "LastSignalPlayerController.h"
 #include "Components/BackgroundBlur.h"
+#include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/ButtonSlot.h"
 #include "Components/CanvasPanel.h"
@@ -641,4 +642,130 @@ void UCreditsWidget::GoToMainMenu()
         return;
     bLeaving = true;
     UGameplayStatics::OpenLevel(this, TEXT("L_MainMenu"));
+}
+
+// ===================== 게임오버 =====================
+
+TSharedRef<SWidget> UGameOverWidget::RebuildWidget()
+{
+    if (WidgetTree && !WidgetTree->RootWidget)
+        BuildWidgetTree();
+
+    return Super::RebuildWidget();
+}
+
+void UGameOverWidget::BuildWidgetTree()
+{
+    UCanvasPanel *Root = WidgetTree->ConstructWidget<UCanvasPanel>();
+    WidgetTree->RootWidget = Root;
+
+    // 게임 화면을 흐리게 + 어둡게 (색은 NativeConstruct에서 카메라 채도를 0으로 → 흑백)
+    UBackgroundBlur *Blur = WidgetTree->ConstructWidget<UBackgroundBlur>();
+    Blur->SetBlurStrength(12.0f);
+    UCanvasPanelSlot *BlurSlot = Root->AddChildToCanvas(Blur);
+    BlurSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    BlurSlot->SetOffsets(FMargin(0.0f));
+
+    UImage *Dim = WidgetTree->ConstructWidget<UImage>();
+    Dim->SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+    UCanvasPanelSlot *DimSlot = Root->AddChildToCanvas(Dim);
+    DimSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    DimSlot->SetOffsets(FMargin(0.0f));
+
+    // 왼쪽: GAME OVER + 기록 + 버튼 (메인메뉴/일시정지와 같은 위치)
+    UVerticalBox *Menu = WidgetTree->ConstructWidget<UVerticalBox>();
+    UCanvasPanelSlot *MenuSlot = Root->AddChildToCanvas(Menu);
+    MenuSlot->SetAnchors(FAnchors(0.08f, 0.5f));
+    MenuSlot->SetAlignment(FVector2D(0.0f, 0.5f));
+    MenuSlot->SetAutoSize(true);
+
+    Menu->AddChildToVerticalBox(MakeMenuText(WidgetTree, TEXT("GAME OVER"), 96, 120))->SetHorizontalAlignment(HAlign_Left);
+
+    const int32 TotalSeconds = FMath::Max(0, FMath::FloorToInt(PlayTimeSeconds));
+    UTextBlock *Stats = MakeMenuText(WidgetTree, FString::Printf(TEXT("SURVIVED %02d:%02d  ·  KILLS %d"), TotalSeconds / 60, TotalSeconds % 60, KillCount), 20, 300);
+    Stats->SetColorAndOpacity(FSlateColor(FLinearColor(0.73f, 0.75f, 0.77f, 1.0f)));
+    UVerticalBoxSlot *StatsSlot = Menu->AddChildToVerticalBox(Stats);
+    StatsSlot->SetHorizontalAlignment(HAlign_Left);
+    StatsSlot->SetPadding(FMargin(4.0f, 14.0f, 0.0f, 0.0f));
+
+    FButtonStyle TextButtonStyle;
+    TextButtonStyle.SetNormal(FSlateNoResource());
+    TextButtonStyle.SetHovered(FSlateNoResource());
+    TextButtonStyle.SetPressed(FSlateNoResource());
+    TextButtonStyle.SetNormalPadding(FMargin(0.0f));
+    TextButtonStyle.SetPressedPadding(FMargin(0.0f));
+
+    UButton *Retry = WidgetTree->ConstructWidget<UButton>();
+    Retry->SetStyle(TextButtonStyle);
+    RetryText = MakeMenuText(WidgetTree, TEXT("RETRY"), 48, 200);
+    Retry->AddChild(RetryText);
+    Retry->OnClicked.AddDynamic(this, &UGameOverWidget::HandleRetryClicked);
+    Retry->OnHovered.AddDynamic(this, &UGameOverWidget::HandleRetryHovered);
+    Retry->OnUnhovered.AddDynamic(this, &UGameOverWidget::HandleRetryUnhovered);
+    UVerticalBoxSlot *RetrySlot = Menu->AddChildToVerticalBox(Retry);
+    RetrySlot->SetHorizontalAlignment(HAlign_Left);
+    RetrySlot->SetPadding(FMargin(0.0f, 50.0f, 0.0f, 0.0f));
+
+    UButton *MainMenu = WidgetTree->ConstructWidget<UButton>();
+    MainMenu->SetStyle(TextButtonStyle);
+    MainMenuText = MakeMenuText(WidgetTree, TEXT("MAIN MENU"), 48, 200);
+    MainMenu->AddChild(MainMenuText);
+    MainMenu->OnClicked.AddDynamic(this, &UGameOverWidget::HandleMainMenuClicked);
+    MainMenu->OnHovered.AddDynamic(this, &UGameOverWidget::HandleMainMenuHovered);
+    MainMenu->OnUnhovered.AddDynamic(this, &UGameOverWidget::HandleMainMenuUnhovered);
+    UVerticalBoxSlot *MainMenuSlot = Menu->AddChildToVerticalBox(MainMenu);
+    MainMenuSlot->SetHorizontalAlignment(HAlign_Left);
+    MainMenuSlot->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+}
+
+void UGameOverWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // 죽는 순간 세상의 색이 빠지는 연출: 플레이어 카메라 후처리 채도 0 (다음 레벨을 열면 새 카메라라 원래대로 돌아옴)
+    if (const APlayerController *PlayerController = GetOwningPlayer())
+    {
+        if (const APawn *Pawn = PlayerController->GetPawn())
+        {
+            if (UCameraComponent *Camera = Pawn->FindComponentByClass<UCameraComponent>())
+            {
+                Camera->PostProcessSettings.bOverride_ColorSaturation = true;
+                Camera->PostProcessSettings.ColorSaturation = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
+                Camera->PostProcessBlendWeight = 1.0f;
+            }
+        }
+    }
+}
+
+void UGameOverWidget::HandleRetryClicked()
+{
+    // 예전 WBP_GameOver와 같은 동작: 지금 레벨을 처음부터 (저장값은 레벨 시작 시점 것으로 복원됨)
+    UGameplayStatics::OpenLevel(this, FName(UGameplayStatics::GetCurrentLevelName(this)));
+}
+
+void UGameOverWidget::HandleMainMenuClicked()
+{
+    UGameplayStatics::OpenLevel(this, TEXT("L_MainMenu"));
+}
+
+void UGameOverWidget::HandleRetryHovered()
+{
+    RetryText->SetText(FText::FromString(TEXT("RETRY ?"))); // "다시 해 볼래?"
+    RetryText->SetColorAndOpacity(FSlateColor(MenuAmber));
+}
+
+void UGameOverWidget::HandleRetryUnhovered()
+{
+    RetryText->SetText(FText::FromString(TEXT("RETRY")));
+    RetryText->SetColorAndOpacity(FSlateColor(MenuInk));
+}
+
+void UGameOverWidget::HandleMainMenuHovered()
+{
+    MainMenuText->SetColorAndOpacity(FSlateColor(MenuAmber));
+}
+
+void UGameOverWidget::HandleMainMenuUnhovered()
+{
+    MainMenuText->SetColorAndOpacity(FSlateColor(MenuInk));
 }

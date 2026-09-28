@@ -251,18 +251,23 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
 
 void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 실패 / 플레이어 사망 공용)
 {
-    if (!GameOverClass) // 위젯 BP 안 지정돼 있으면 그냥 무시 (BP_LastSignalGameMode에 아직 설정 안 했을 때 대비)
-        return;
-
     APlayerController *CurrentPlayerController = GetWorld()->GetFirstPlayerController(); // 위젯 만들고 입력모드 바꾸려면 PlayerController 필요 , PlayerController를 가져오는 것
     if (!CurrentPlayerController)
         return;
 
-    UUserWidget *GameOverWidget = CreateWidget<UUserWidget>(CurrentPlayerController, GameOverClass); // GameOverClass에 꽂힌 WBP_GameOver로 위젯 인스턴스 생성
+    // 코드로 만든 게임오버 화면(UGameOverWidget)을 쓴다. GameOverClass(WBP_GameOver)는 더 이상 사용 안 함
+    UGameOverWidget *GameOverWidget = CreateWidget<UGameOverWidget>(CurrentPlayerController, UGameOverWidget::StaticClass());
     if (!GameOverWidget)
         return;
 
-    GameOverWidget->AddToViewport();                           // 실제 화면에 그려지게 뷰포트에 추가
+    // 기록 (SURVIVED, KILLS) — 크레딧과 같은 계산
+    if (const ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+        GameOverWidget->PlayTimeSeconds = static_cast<float>(FPlatformTime::Seconds() - CurrentGameInstance->GameStartRealSeconds);
+    if (const ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
+        GameOverWidget->KillCount = CurrentGameState->KillCount;
+
+    GetWorldTimerManager().ClearTimer(TimerHandle);            // 게임오버 순간 시계(스톱워치/카운트다운) 멈춤
+    GameOverWidget->AddToViewport(50);                         // 손목시계(1), HUD보다 위 → 블러가 시계까지 덮음
     CurrentPlayerController->SetInputMode(FInputModeUIOnly()); // 조작 입력을 UI(버튼)로만 받게 전환
     CurrentPlayerController->bShowMouseCursor = true;          // 버튼 클릭하려면 마우스 커서 보여야 함
 }
