@@ -4,6 +4,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "PlayerCharacter.h"
 #include "PrimaryWeapon.h"
+#include "WeaponSelectWidget.h"
+#include "GameFramework/PlayerController.h"
 
 AWeaponSelectionBox::AWeaponSelectionBox()
 {
@@ -71,10 +73,17 @@ void AWeaponSelectionBox::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AAct
 
 void AWeaponSelectionBox::Interact_Implementation(AActor *Interactor)
 {
-    if (!Interactor)
+    // F → 무기 선택 화면을 띄운다 (카드를 고르면 화면이 SelectAndEquipWeapon을 호출)
+    const APawn *InteractorPawn = Cast<APawn>(Interactor);
+    APlayerController *PlayerController = InteractorPawn ? Cast<APlayerController>(InteractorPawn->GetController()) : nullptr;
+    if (!PlayerController)
         return;
 
-    SelectAndEquipWeapon(0, Interactor);
+    if (UWeaponSelectWidget *SelectWidget = CreateWidget<UWeaponSelectWidget>(PlayerController, UWeaponSelectWidget::StaticClass()))
+    {
+        SelectWidget->SelectionBox = this;
+        SelectWidget->AddToViewport(10); // HUD보다 위에 표시
+    }
 }
 
 void AWeaponSelectionBox::SelectAndEquipWeapon(int32 WeaponIndex, AActor *Interactor)

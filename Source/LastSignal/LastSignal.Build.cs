@@ -10,7 +10,7 @@ public class LastSignal : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput","AIModule", "Niagara", "NavigationSystem","StateTreeModule","GameplayStateTreeModule", "UMG" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" }); // 무기 선택 화면(WeaponSelectWidget)에서 버튼/브러시 스타일 사용
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
