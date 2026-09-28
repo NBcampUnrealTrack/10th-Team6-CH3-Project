@@ -12,6 +12,7 @@ class APrimaryWeapon;
 class USkillComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDiedDelegate); // 캐릭터가 죽을때 다른 클래스로 알려주는 이벤트 타입 만드는 부분 (델리게이트 기반)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHPUpdatedDelegate, float, CurrentHP, float, MaxHP, float, Percent01);
 
 UCLASS()
 class LASTSIGNAL_API APlayerCharacter : public ACharacter
@@ -26,8 +27,26 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
 
     virtual float TakeDamage(float DamageAmount, struct FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser) override; // 데미지 받는 함수 ( 캐릭터가 데미지 받으면 자동 호출해요)
+    
     UPROPERTY(BlueprintAssignable, Category = "Health|Events")
     FOnDiedDelegate OnDied;
+
+    UPROPERTY(BlueprintAssignable, Category = "Health|Events")
+    FOnHPUpdatedDelegate OnHPUpdated;
+
+    UFUNCTION(BlueprintCallable, Category = "Health")
+    void Heal(float Amount);
+
+    UFUNCTION(BlueprintCallable, Category = "Health")
+    void RestoreFullHealth();
+
+    UFUNCTION(BlueprintPure, Category = "Health")
+    float GetMaxHealth() const { return MaxHealth; }
+
+    UFUNCTION(BlueprintPure, Category = "Health")
+    float GetCurrentHealth() const { return CurrentHealth; }
+
+    void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
     UFUNCTION(BlueprintCallable, Category = "Player|Control")
     void SetPlayerControlLocked(bool bLock);
@@ -47,9 +66,6 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     APrimaryWeapon *GetCurrentWeapon() const { return CurrentWeapon; }
-
-    float GetCurrentHealth() const { return CurrentHealth; }
-    void SetCurrentHealth(float NewHealth) { CurrentHealth = NewHealth; }
 
     UFUNCTION(BlueprintCallable, Category = "Save")
     void SaveStateToGameInstance();
