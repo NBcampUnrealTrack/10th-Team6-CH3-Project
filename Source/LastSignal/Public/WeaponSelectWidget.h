@@ -9,7 +9,9 @@
 #include "WeaponSelectWidget.generated.h"
 
 class AWeaponSelectionBox;
+class UBorder;
 class UImage;
+class UTextBlock;
 class UProgressBar;
 class UWeaponSelectWidget;
 
@@ -66,7 +68,28 @@ public:
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeConstruct() override;
+    virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override; // ESC로 닫기
 
 private:
     void BuildWidgetTree();
+    void SetCloseHighlighted(bool bHighlighted);
+
+    UFUNCTION()
+    void HandleCloseHovered();
+
+    UFUNCTION()
+    void HandleCloseUnhovered();
+
+    // 닫기 버튼: 얇은 선 두 개로 그린 X + ESC 키캡 (호버 시 전부 주황)
+    UPROPERTY()
+    TArray<TObjectPtr<UImage>> CloseCrossLines;
+
+    UPROPERTY()
+    TObjectPtr<UBorder> CloseKeyCap;
+
+    UPROPERTY()
+    TObjectPtr<UTextBlock> CloseKeyText;
+
+    UPROPERTY()
+    TObjectPtr<UBorder> CloseCrossCap; // X를 담은 키캡 (ESC 키캡과 같은 모양)
 };

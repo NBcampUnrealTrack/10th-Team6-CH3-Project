@@ -330,25 +330,104 @@ void UWeaponSelectWidget::BuildWidgetTree()
     Center->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("클릭해서 선택"), 18, Muted))
         ->SetHorizontalAlignment(HAlign_Center);
 
-    // 오른쪽 위 닫기 버튼 (안 고르고 나가기): 반투명 유리 느낌의 둥근 사각형 + 큰 ×, 호버 시 주황 테두리
+    // 오른쪽 위 닫기: 배경 없이 [ESC 키캡] + 얇은 선 두 개로 그린 X (게임 메뉴의 키 안내 스타일)
+    // 글꼴 ×는 굵기/위치가 어색해서 선을 직접 그린다. 호버 시 전부 주황 + X 살짝 커짐
     UButton *CloseButton = WidgetTree->ConstructWidget<UButton>();
     FButtonStyle CloseStyle;
-    CloseStyle.SetNormal(FSlateRoundedBoxBrush(FLinearColor(1.0f, 1.0f, 1.0f, 0.06f), 14.0f, FLinearColor(1.0f, 1.0f, 1.0f, 0.25f), 1.5f));
-    CloseStyle.SetHovered(FSlateRoundedBoxBrush(FLinearColor(1.0f, 0.6f, 0.1f, 0.12f), 14.0f, Amber, 2.0f));
-    CloseStyle.SetPressed(FSlateRoundedBoxBrush(FLinearColor(1.0f, 0.6f, 0.1f, 0.25f), 14.0f, Amber, 2.0f));
+    CloseStyle.SetNormal(FSlateNoResource());
+    CloseStyle.SetHovered(FSlateNoResource());
+    CloseStyle.SetPressed(FSlateNoResource());
     CloseStyle.SetNormalPadding(FMargin(0.0f));
     CloseStyle.SetPressedPadding(FMargin(0.0f));
     CloseButton->SetStyle(CloseStyle);
     CloseButton->OnClicked.AddDynamic(this, &UWeaponSelectWidget::CloseWidget);
-    UButtonSlot *CloseTextSlot = Cast<UButtonSlot>(CloseButton->AddChild(MakeText(WidgetTree, TEXT("×"), 36, Ink)));
-    CloseTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f)); // ×가 글꼴 기준선 때문에 살짝 아래로 쏠려서 보정
-    CloseTextSlot->SetHorizontalAlignment(HAlign_Center);
-    CloseTextSlot->SetVerticalAlignment(VAlign_Center);
+    CloseButton->OnHovered.AddDynamic(this, &UWeaponSelectWidget::HandleCloseHovered);
+    CloseButton->OnUnhovered.AddDynamic(this, &UWeaponSelectWidget::HandleCloseUnhovered);
+
+    UHorizontalBox *CloseRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+    CloseButton->AddChild(CloseRow);
+
+    // 키캡 두 개 [ESC] [X]: 같은 높이 34, 같은 테두리(1.5, 둥글기 6), 같은 색(회색 → 호버 시 주황)
+    // 흰색 테두리 브러시를 SetBrushColor로 물들여서 색을 바꾼다
+    const FSlateRoundedBoxBrush KeyCapBrush(FLinearColor::Transparent, 6.0f, FLinearColor::White, 1.5f);
+    constexpr float KeyCapHeight = 34.0f;
+
+    USizeBox *EscSize = WidgetTree->ConstructWidget<USizeBox>();
+    EscSize->SetHeightOverride(KeyCapHeight);
+    CloseKeyCap = WidgetTree->ConstructWidget<UBorder>();
+    CloseKeyCap->SetBrush(KeyCapBrush);
+    CloseKeyCap->SetBrushColor(Muted);
+    CloseKeyCap->SetPadding(FMargin(11.0f, 0.0f));
+    CloseKeyCap->SetVerticalAlignment(VAlign_Center);
+    CloseKeyText = MakeText(WidgetTree, TEXT("ESC"), 15, Muted, true);
+    CloseKeyCap->SetContent(CloseKeyText);
+    EscSize->AddChild(CloseKeyCap);
+    CloseRow->AddChildToHorizontalBox(EscSize)->SetVerticalAlignment(VAlign_Center);
+
+    // X: 16×3 둥근 선 두 개를 ±45° 돌려서 겹침 (ESC 글자 굵기와 비슷하게)
+    USizeBox *CrossSize = WidgetTree->ConstructWidget<USizeBox>();
+    CrossSize->SetWidthOverride(KeyCapHeight);
+    CrossSize->SetHeightOverride(KeyCapHeight);
+    CloseCrossCap = WidgetTree->ConstructWidget<UBorder>();
+    CloseCrossCap->SetBrush(KeyCapBrush);
+    CloseCrossCap->SetBrushColor(Muted);
+    CloseCrossCap->SetPadding(FMargin(0.0f));
+    CloseCrossCap->SetHorizontalAlignment(HAlign_Center);
+    CloseCrossCap->SetVerticalAlignment(VAlign_Center);
+    UOverlay *Cross = WidgetTree->ConstructWidget<UOverlay>();
+    CloseCrossCap->SetContent(Cross);
+    CrossSize->AddChild(CloseCrossCap);
+    for (const float Angle : {45.0f, -45.0f})
+    {
+        UImage *Line = WidgetTree->ConstructWidget<UImage>();
+        Line->SetBrush(FSlateRoundedBoxBrush(FLinearColor::White, 1.5f, FVector2f(16.0f, 3.0f)));
+        Line->SetColorAndOpacity(Muted);
+        Line->SetRenderTransformAngle(Angle);
+        UOverlaySlot *LineSlot = Cross->AddChildToOverlay(Line);
+        LineSlot->SetHorizontalAlignment(HAlign_Center);
+        LineSlot->SetVerticalAlignment(VAlign_Center);
+        CloseCrossLines.Add(Line);
+    }
+    UHorizontalBoxSlot *CrossSlot = CloseRow->AddChildToHorizontalBox(CrossSize);
+    CrossSlot->SetVerticalAlignment(VAlign_Center);
+    CrossSlot->SetPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+
     UCanvasPanelSlot *CloseSlot = Root->AddChildToCanvas(CloseButton);
     CloseSlot->SetAnchors(FAnchors(1.0f, 0.0f));
     CloseSlot->SetAlignment(FVector2D(1.0f, 0.0f));
-    CloseSlot->SetPosition(FVector2D(-48.0f, 48.0f));
-    CloseSlot->SetSize(FVector2D(56.0f, 56.0f));
+    CloseSlot->SetPosition(FVector2D(-44.0f, 40.0f));
+    CloseSlot->SetAutoSize(true);
+}
+
+void UWeaponSelectWidget::SetCloseHighlighted(bool bHighlighted)
+{
+    // 두 키캡(테두리, ESC 글자, X 선)을 항상 같은 색으로
+    const FLinearColor KeyColor = bHighlighted ? Amber : Muted;
+    for (UImage *Line : CloseCrossLines)
+        Line->SetColorAndOpacity(KeyColor);
+    CloseKeyCap->SetBrushColor(KeyColor);
+    CloseCrossCap->SetBrushColor(KeyColor);
+    CloseKeyText->SetColorAndOpacity(FSlateColor(KeyColor));
+}
+
+void UWeaponSelectWidget::HandleCloseHovered()
+{
+    SetCloseHighlighted(true);
+}
+
+void UWeaponSelectWidget::HandleCloseUnhovered()
+{
+    SetCloseHighlighted(false);
+}
+
+FReply UWeaponSelectWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
+{
+    if (InKeyEvent.GetKey() == EKeys::Escape)
+    {
+        CloseWidget();
+        return FReply::Handled();
+    }
+    return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UWeaponSelectWidget::NativeConstruct()
@@ -356,9 +435,13 @@ void UWeaponSelectWidget::NativeConstruct()
     Super::NativeConstruct();
 
     // 일시정지 메뉴와 같은 방식: 조작은 UI로만, 마우스 커서 표시
+    // + 이 화면에 키보드 포커스를 줘서 ESC를 받는다 (NativeOnKeyDown)
+    SetIsFocusable(true);
     if (APlayerController *PlayerController = GetOwningPlayer())
     {
-        PlayerController->SetInputMode(FInputModeUIOnly());
+        FInputModeUIOnly InputMode;
+        InputMode.SetWidgetToFocus(TakeWidget());
+        PlayerController->SetInputMode(InputMode);
         PlayerController->bShowMouseCursor = true;
     }
 }
