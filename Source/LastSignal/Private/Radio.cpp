@@ -40,16 +40,7 @@ void ARadio::OnBoxBeginOverlap(UPrimitiveComponent *OverlappedComp, AActor *Othe
     {
         PlayerCharacter->NearbyInteractable = this;
 
-        // UI 추가
-        if (ALastSignalPlayerController *PC =
-                Cast<ALastSignalPlayerController>(PlayerCharacter->GetController()))
-        {
-            if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
-            {
-                HUD->SetInteractPromptVisible(true);
-            }
-        }
-        // 여기까지
+        // [F] 안내는 InteractPromptWidget이 NearbyInteractable을 보고 띄운다 (예전 HUD 문구는 사용 안 함)
     }
 }
 
@@ -62,22 +53,20 @@ void ARadio::OnBoxEndOverlap(UPrimitiveComponent *OverlappedComp, AActor *OtherA
     if (APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(OtherActor))
     {
         PlayerCharacter->NearbyInteractable = nullptr;
-
-        // UI 추가
-        if (ALastSignalPlayerController *PC =
-                Cast<ALastSignalPlayerController>(PlayerCharacter->GetController()))
-        {
-            if (ULastSignalPlayerHUDComponent *HUD = PC->GetHUDComponent())
-            {
-                HUD->SetInteractPromptVisible(false);
-            }
-        }
-        // 여기까지
     }
+}
+
+FText ARadio::GetInteractPromptText_Implementation() const
+{
+    return bActivated ? FText::GetEmpty() : FText::FromString(TEXT("무전기 사용"));
 }
 
 void ARadio::Interact_Implementation(AActor *Interactor)
 {
+    if (bActivated)
+        return;
+    bActivated = true;
+
     ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this));
 
     if (GameMode)

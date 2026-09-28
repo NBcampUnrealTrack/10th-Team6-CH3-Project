@@ -73,6 +73,12 @@ namespace
         return Brush;
     }
 
+    // [ESC][X] 키캡: 속이 빈 둥근 사각 테두리 (선 색을 직접 지정)
+    FSlateRoundedBoxBrush MakeKeyCapBrush(const FLinearColor &OutlineColor)
+    {
+        return FSlateRoundedBoxBrush(FLinearColor::Transparent, 6.0f, OutlineColor, 1.5f);
+    }
+
     UTextBlock *MakeText(UWidgetTree *Tree, const FString &String, int32 Size, const FLinearColor &Color, bool bBold = false)
     {
         UTextBlock *Text = Tree->ConstructWidget<UTextBlock>();
@@ -348,15 +354,14 @@ void UWeaponSelectWidget::BuildWidgetTree()
     CloseButton->AddChild(CloseRow);
 
     // 키캡 두 개 [ESC] [X]: 같은 높이 34, 같은 테두리(1.5, 둥글기 6), 같은 색(회색 → 호버 시 주황)
-    // 흰색 테두리 브러시를 SetBrushColor로 물들여서 색을 바꾼다
-    const FSlateRoundedBoxBrush KeyCapBrush(FLinearColor::Transparent, 6.0f, FLinearColor::White, 1.5f);
+    // 둥근 테두리의 선 색은 SetBrushColor가 안 먹어서(DrawElementTypes.cpp), 색을 바꿀 땐 브러시를 새로 넣는다
+    const FSlateRoundedBoxBrush KeyCapBrush = MakeKeyCapBrush(Muted);
     constexpr float KeyCapHeight = 34.0f;
 
     USizeBox *EscSize = WidgetTree->ConstructWidget<USizeBox>();
     EscSize->SetHeightOverride(KeyCapHeight);
     CloseKeyCap = WidgetTree->ConstructWidget<UBorder>();
     CloseKeyCap->SetBrush(KeyCapBrush);
-    CloseKeyCap->SetBrushColor(Muted);
     CloseKeyCap->SetPadding(FMargin(11.0f, 0.0f));
     CloseKeyCap->SetVerticalAlignment(VAlign_Center);
     CloseKeyText = MakeText(WidgetTree, TEXT("ESC"), 15, Muted, true);
@@ -370,7 +375,6 @@ void UWeaponSelectWidget::BuildWidgetTree()
     CrossSize->SetHeightOverride(KeyCapHeight);
     CloseCrossCap = WidgetTree->ConstructWidget<UBorder>();
     CloseCrossCap->SetBrush(KeyCapBrush);
-    CloseCrossCap->SetBrushColor(Muted);
     CloseCrossCap->SetPadding(FMargin(0.0f));
     CloseCrossCap->SetHorizontalAlignment(HAlign_Center);
     CloseCrossCap->SetVerticalAlignment(VAlign_Center);
@@ -405,8 +409,8 @@ void UWeaponSelectWidget::SetCloseHighlighted(bool bHighlighted)
     const FLinearColor KeyColor = bHighlighted ? Amber : Muted;
     for (UImage *Line : CloseCrossLines)
         Line->SetColorAndOpacity(KeyColor);
-    CloseKeyCap->SetBrushColor(KeyColor);
-    CloseCrossCap->SetBrushColor(KeyColor);
+    CloseKeyCap->SetBrush(MakeKeyCapBrush(KeyColor));
+    CloseCrossCap->SetBrush(MakeKeyCapBrush(KeyColor));
     CloseKeyText->SetColorAndOpacity(FSlateColor(KeyColor));
 }
 

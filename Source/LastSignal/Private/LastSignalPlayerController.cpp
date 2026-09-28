@@ -2,6 +2,7 @@
 
 #include "LastSignalPlayerController.h"
 #include "LastSignalHUDWidget.h"
+#include "InteractPromptWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
 #include "Blueprint/UserWidget.h"
@@ -24,6 +25,10 @@ void ALastSignalPlayerController::BeginPlay()
 		{
 			HUDWidgetInstance->BindHUDComponent(HUDComponent);
 			HUDWidgetInstance->AddToViewport();
+
+			// [F] 상호작용 안내 (무전기, 무기 상자, 탄약 상자, 메디킷 공통) — 코드로 만든 위젯이라 WBP 지정 없음
+			if (UInteractPromptWidget *InteractPrompt = CreateWidget<UInteractPromptWidget>(this, UInteractPromptWidget::StaticClass()))
+				InteractPrompt->AddToViewport(1);
 
 			// 시작 목표 문구: GameMode의 레벨별 목록에서 현재 레벨 것을 찾아 표시
 			// (GameMode BeginPlay에서 하면 위젯 바인딩 전이라 방송을 놓침 → 위젯 바인딩 직후인 여기서 호출)

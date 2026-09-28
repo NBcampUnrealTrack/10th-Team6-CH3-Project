@@ -21,6 +21,7 @@ class LASTSIGNAL_API AWeaponSelectionBox : public AActor, public IInteractableTa
     virtual void OnConstruction(const FTransform &Transform) override;
 
     virtual void Interact_Implementation(AActor *Interactor) override;
+    virtual FText GetInteractPromptText_Implementation() const override { return FText::FromString(TEXT("무기 선택")); }
 
     // 주무기 지급 및 장착 함수
     UFUNCTION(BlueprintCallable, Category = "Weapon Selection")

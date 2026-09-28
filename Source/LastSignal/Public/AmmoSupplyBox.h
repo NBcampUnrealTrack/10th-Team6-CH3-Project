@@ -21,6 +21,7 @@ class LASTSIGNAL_API AAmmoSupplyBox : public AActor, public IInteractableTarget
     AAmmoSupplyBox();
 
     virtual void Interact_Implementation(AActor *InteractingActor) override;
+    virtual FText GetInteractPromptText_Implementation() const override;
 
   protected:
     virtual void BeginPlay() override;

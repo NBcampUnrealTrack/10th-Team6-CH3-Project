@@ -47,6 +47,11 @@ void AAmmoSupplyBox::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AActor *O
     }
 }
 
+FText AAmmoSupplyBox::GetInteractPromptText_Implementation() const
+{
+    return CurrentCharges > 0 ? FText::FromString(TEXT("탄약 보급")) : FText::GetEmpty();
+}
+
 void AAmmoSupplyBox::Interact_Implementation(AActor *InteractingActor)
 {
     if (bIsInteracting)

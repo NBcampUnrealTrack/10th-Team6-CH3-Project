@@ -73,6 +73,11 @@ void AMediKit::PlayMediKitSound(USoundBase *SoundToPlay)
     }
 }
 
+FText AMediKit::GetInteractPromptText_Implementation() const
+{
+    return CurrentCharges > 0 ? FText::FromString(TEXT("체력 회복")) : FText::GetEmpty();
+}
+
 void AMediKit::Interact_Implementation(AActor *InteractingActor)
 {
     if (bIsInteracting)

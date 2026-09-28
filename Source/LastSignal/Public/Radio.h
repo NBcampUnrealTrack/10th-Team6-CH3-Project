@@ -18,6 +18,10 @@ public:
 	ARadio();
 
 	virtual void Interact_Implementation(AActor *Interactor) override;
+	virtual FText GetInteractPromptText_Implementation() const override;
+
+	// 한 번 사용하면 다시 못 씀 (다시 누르면 15분 카운트다운이 처음부터 재시작되던 문제 방지)
+	bool bActivated = false;
 
 protected:
 	
