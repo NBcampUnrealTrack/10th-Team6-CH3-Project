@@ -19,6 +19,12 @@ AZombieAICharacter::AZombieAICharacter()
     AIControllerClass = AZombieAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
+     // 캡슐이 사격 트레이스(Visibility)를 막지 않게 해서 머리 히트박스/메시까지 도달하게 한다.
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+
+    // 몸통 피격은 메시가 받는다.
+    GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
     UCharacterMovementComponent *Movement = GetCharacterMovement();
     if (Movement)
     {

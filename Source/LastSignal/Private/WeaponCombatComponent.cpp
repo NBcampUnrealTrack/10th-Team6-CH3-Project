@@ -165,7 +165,8 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
         AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
 
         float FinalDamage = FMath::Max(0.0f, Stats.Damage);
-
+        UE_LOG(LogTemp, Warning, TEXT("[Player] HitComp: %s"),
+               HitResult.GetComponent() ? *HitResult.GetComponent()->GetName() : TEXT("None"));
         // 헤드샷 판정: 맞은 컴포넌트가 HeadHitbox인지 확인
         const bool bHeadshot = (HitResult.GetComponent() == Zombie->GetHeadHitbox());
         if (bHeadshot)

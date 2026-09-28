@@ -33,10 +33,7 @@ void UAnimNotify_ZombieHitCheck::Notify(USkeletalMeshComponent *MeshComp, UAnimS
         FCollisionShape::MakeSphere(AttackRadius),
         Params);
 
-#if WITH_EDITOR
-    FColor DrawColor = bHit ? FColor::Red : FColor::Green;
-    DrawDebugSphere(World, End, AttackRadius, 12, DrawColor, false, 1.0f);
-#endif
+
 
     if (bHit && HitResult.GetActor())
     {
