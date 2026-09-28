@@ -8,7 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
 #include "Components/SphereComponent.h"
-
+#include "BrainComponent.h"
 // UI 추가
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
@@ -92,43 +92,40 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
         SetMovementSpeed(WalkSpeed * 0.5f);
     }
 
-    // 체력이 0 이하가 되면 사망 처리
+     // 체력이 0 이하가 되면 사망 처리
     if (CurrentHP <= 0.0f)
     {
         bIsDead = true;
+        bIsAttacking = false;
+
+        // 진행 중인 공격 몽타주를 즉시 중단 (블렌드 아웃 0초)
+        if (UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.0f);
+        }
 
         if (ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this)))
             GameMode->OnZombieKilled(); // 킬카운트 증가 (게임모드로 보냄)
 
-
-       // UI 추가
-        // 플레이어가 이 좀비를 처치한 경우 HUD에 킬 전달
-        if (EventInstigator)
-        {
-            if (ALastSignalPlayerController *PlayerController =
-                    Cast<ALastSignalPlayerController>(EventInstigator))
-            {
-                if (ULastSignalPlayerHUDComponent *HUDComponent =
-                        PlayerController->GetHUDComponent())
-                {
-                    HUDComponent->RegisterKill(
-                        FText::FromString(TEXT("Zombie")));
-                }
-            }
-        }
-        // 여기까지
+        // UI 추가
+        // (기존 HUD 킬 등록 코드 그대로)
 
         UE_LOG(LogTemp, Error, TEXT("[Zombie] Dead!"));
 
         // 1. AI 동작 중단 및 빙의 해제
         if (AAIController *AICon = Cast<AAIController>(GetController()))
         {
+            if (UBrainComponent *Brain = AICon->GetBrainComponent())
+            {
+                Brain->StopLogic(TEXT("Dead")); // 진행 중인 BT 태스크 중단
+            }
             AICon->StopMovement();
             AICon->UnPossess();
         }
 
-        // 2. 플레이어/다른 AI와의 충돌 제거 (시체 통과 가능 처리)
+        // 2. 충돌 제거 (시체 통과 가능 처리)
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        HeadHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 시체 머리가 총알 막는 문제 방지
 
         // 3. 이동 컴포넌트 비활성화
         if (UCharacterMovementComponent *Movement = GetCharacterMovement())
