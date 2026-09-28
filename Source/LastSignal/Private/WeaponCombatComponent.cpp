@@ -1,8 +1,5 @@
 ﻿#include "WeaponCombatComponent.h"
 
-// 사격 디버깅용 코드
-#include "DrawDebugHelpers.h"
-//
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
@@ -168,8 +165,6 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
         AController *InstigatorController = Shooter.IsValid() ? Shooter->GetController() : nullptr;
 
         float FinalDamage = FMath::Max(0.0f, Stats.Damage);
-        UE_LOG(LogTemp, Warning, TEXT("[Player] HitComp: %s"),
-               HitResult.GetComponent() ? *HitResult.GetComponent()->GetName() : TEXT("None"));
         // 헤드샷 판정: 맞은 컴포넌트가 HeadHitbox인지 확인
         const bool bHeadshot = (HitResult.GetComponent() == Zombie->GetHeadHitbox());
         if (bHeadshot)
@@ -184,12 +179,6 @@ void UWeaponCombatComponent::ApplyDamage(const FHitResult &HitResult)
             GetOwner(),
             UDamageType::StaticClass());
 
-        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Zombie! Headshot: %s / Damage: %f"),
-               bHeadshot ? TEXT("YES") : TEXT("NO"), FinalDamage);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Player] Hit Non-Zombie Actor: %s"), *HitActor->GetName());
     }
 }
 
@@ -273,6 +262,7 @@ void UWeaponCombatComponent::TryFire()
     if (Stats.AttackType == EWeaponAttackType::Single && bHit)
     {
         ApplyDamage(Hit);
+        OnImpact.Broadcast(Hit);
     }
 
     NotifyAmmo();
@@ -319,6 +309,7 @@ bool UWeaponCombatComponent::FireSingleShot(
         TraceStart + FireDirection * FMath::Max(1.0f, Stats.Range);
 
     FCollisionQueryParams Params;
+    Params.bReturnPhysicalMaterial = true;
     Params.AddIgnoredActor(GetOwner());
     Params.AddIgnoredActor(Pawn);
 
@@ -329,62 +320,8 @@ bool UWeaponCombatComponent::FireSingleShot(
         ECC_Visibility,
         Params);
 
-    //// 디버그: 실제 충돌 지점까지만 선을 표시한다.
-    // const FVector DebugEnd = bOutHit ? OutHit.ImpactPoint : End;
-
-    // DrawDebugLine(
-    //     World,
-    //     TraceStart,
-    //     DebugEnd,
-    //     bOutHit ? FColor::Green : FColor::Red,
-    //     false,
-    //     10.0f,
-    //     1,
-    //     4.0f);
-
-    //// 디버그: 발사 시작점은 파란 구체로 표시한다.
-    // DrawDebugSphere(
-    //     World,
-    //     TraceStart,
-    //     3.0f,
-    //     8,
-    //     FColor::Blue,
-    //     false,
-    //     10.0f,
-    //     1,
-    //     1.0f);
-
-    if (bOutHit)
-    {
-        DrawDebugPoint(
-            World,
-            OutHit.ImpactPoint,
-            15.0f,
-            FColor::Yellow,
-            false,
-            10.0f,
-            1);
-    }
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT("[TraceDebug] Source=%s Hit=%d"),
-        bHasMuzzle ? TEXT("MuzzleSocket") : TEXT("WeaponMesh"),
-        bOutHit);
-
     // 빗나가도 발사는 실행됐으므로 탄약은 소비한다.
     return true;
-    // 디버깅용 임시 주석처리
-    // bOutHit = GetWorld()->LineTraceSingleByChannel(
-    //   OutHit,
-    // TraceStart,
-    // End,
-    // ECC_Visibility,
-    // Params);
-
-    // 명중하지 않아도 총알 한 발은 정상적으로 발사한 것이다.
-    // return true;
 }
 
 bool UWeaponCombatComponent::FireShotgun(
@@ -432,10 +369,9 @@ bool UWeaponCombatComponent::FireShotgun(
     const float InnerAngleDegrees = OuterAngleDegrees * 0.5f;
 
     FCollisionQueryParams Params;
+    Params.bReturnPhysicalMaterial = true;
     Params.AddIgnoredActor(GetOwner());
     Params.AddIgnoredActor(Pawn);
-
-    int32 HitPelletCount = 0;
 
     for (int32 i = 0; i < NumPellets; ++i)
     {
@@ -461,9 +397,7 @@ bool UWeaponCombatComponent::FireShotgun(
 
         if (bPelletHit)
         {
-            ++HitPelletCount;
-
-            // 첫 명중 결과를 대표 이펙트용으로 전달한다.
+            // 기존 발사 이벤트에는 첫 명중 결과만 대표값으로 전달한다.
             if (!bOutHit)
             {
                 OutHit = PelletHit;
@@ -472,26 +406,10 @@ bool UWeaponCombatComponent::FireShotgun(
 
             ApplyDamage(PelletHit);
 
-            // 일반탄과 동일한 명중 디버그 표시.
-            DrawDebugPoint(
-                World,
-                PelletHit.ImpactPoint,
-                15.0f,
-                FColor::Yellow,
-                false,
-                10.0f,
-                1);
+            // 탄착 연출은 명중한 산탄마다 한 번씩 전달한다.
+            OnImpact.Broadcast(PelletHit);
         }
     }
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT("[ShotgunTraceDebug] Source=%s Pellets=%d Inner=%d Hits=%d"),
-        bHasMuzzle ? TEXT("MuzzleSocket") : TEXT("WeaponMesh"),
-        NumPellets,
-        InnerPelletCount,
-        HitPelletCount);
 
     return true;
 }

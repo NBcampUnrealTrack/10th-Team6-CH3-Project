@@ -213,6 +213,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     bool, bHit,
     const FHitResult &, HitResult);
 
+// 실제 명중마다 호출한다. 산탄총은 명중한 펠릿 수만큼 호출한다.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FWeaponImpactEvent,
+    const FHitResult &, HitResult);
+
 // UI가 탄약 변경을 전달받을 수 있다.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     FWeaponAmmoEvent,
@@ -266,6 +271,9 @@ class LASTSIGNAL_API UWeaponCombatComponent : public UActorComponent
 
     UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
     FWeaponShotEvent OnShot;
+
+    UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+    FWeaponImpactEvent OnImpact;
 
     UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
     FWeaponAmmoEvent OnAmmoChanged;
