@@ -23,6 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpecialAttackEnded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnKillConfirmed, FText, VictimName);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHitMarkerRequested);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameOverRequested);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractPromptChanged, bool, bShow);
 
 UCLASS(ClassGroup = (LastSignal), meta = (BlueprintSpawnableComponent))
 class LASTSIGNAL_API ULastSignalPlayerHUDComponent : public UActorComponent
@@ -135,6 +136,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "LastSignal|Delegates") FOnKillConfirmed OnKillConfirmed;
 	UPROPERTY(BlueprintAssignable, Category = "LastSignal|Delegates") FOnHitMarkerRequested OnHitMarkerRequested;
 	UPROPERTY(BlueprintAssignable, Category = "LastSignal|Delegates") FOnGameOverRequested OnGameOverRequested;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractPromptChanged, bool, bShow);
+
+        UFUNCTION(BlueprintCallable, Category = "LastSignal|Interact")
+        void SetInteractPromptVisible(bool bVisible);
+
+        UPROPERTY(BlueprintAssignable, Category = "LastSignal|Delegates")
+        FOnInteractPromptChanged OnInteractPromptChanged;
 
 protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
