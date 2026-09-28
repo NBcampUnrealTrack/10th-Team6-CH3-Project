@@ -32,6 +32,9 @@ class LASTSIGNAL_API UAdrenalineSkill : public USkillComponent
     TObjectPtr<USoundBase> ActivationSound;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
+    TObjectPtr<USoundBase> DeactivationSound;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effects")
     FName AttachSocketName = TEXT("hand_rSocket");
 
    UPROPERTY()

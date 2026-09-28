@@ -59,10 +59,8 @@ void AAmmoSupplyBox::Interact_Implementation(AActor *InteractingActor)
     CachedPlayer = Player;
     bIsInteracting = true;
 
-    // 플레이어 이동 및 사격 잠금
-    //Player->SetPlayerControlLocked(true);
+    Player->SetPlayerControlLocked(true);
 
-    // 2. 상호작용 시작 시 사운드 및 몽타주 재생
     if (ChannelingSound)
     {
         UGameplayStatics::PlaySoundAtLocation(this, ChannelingSound, GetActorLocation());
@@ -90,8 +88,7 @@ void AAmmoSupplyBox::CompleteInteraction()
         return;
     }
 
-    // 플레이어 조작 잠금 해제
-    //CachedPlayer->SetPlayerControlLocked(false);
+    CachedPlayer->SetPlayerControlLocked(false);
 
     if (CurrentCharges > 0)
     {
@@ -121,10 +118,6 @@ void AAmmoSupplyBox::CompleteInteraction()
     }
     else
     {
-        if (GEngine)
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("탄약을 모두 사용했습니다."));
-        }
 
         if (DepletedSound)
         {
