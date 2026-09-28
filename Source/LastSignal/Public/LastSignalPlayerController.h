@@ -10,6 +10,7 @@
 class ULastSignalHUDWidget;
 class ULastSignalPlayerHUDComponent;
 class UUserWidget;
+class UWidget;
 
 UCLASS()
 class LASTSIGNAL_API ALastSignalPlayerController : public APlayerController
@@ -34,6 +35,10 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void PlayerTick(float DeltaTime) override; // 조준 중이면 크로스헤어 숨김
+
+	// WBP_LastSignalHUD의 Image_Crosshair (BeginPlay에서 찾아 둠)
+	TWeakObjectPtr<UWidget> CrosshairWidget;
 
 	// 에디터에서 WBP_LastSignalHUD 를 지정
 	UPROPERTY(EditDefaultsOnly, Category = "LastSignal|HUD")

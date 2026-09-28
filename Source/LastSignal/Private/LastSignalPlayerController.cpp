@@ -7,6 +7,8 @@
 #include "MainMenuWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
+#include "PlayerCharacter.h"
+#include "PrimaryWeapon.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -44,6 +46,13 @@ void ALastSignalPlayerController::BeginPlay()
 					OldText->SetVisibility(ESlateVisibility::Collapsed);
 			}
 
+			// 크로스헤어가 작아서 2.2배로 키움 (WBP 수정 없이). 조준 중 숨김은 PlayerTick에서
+			if (UWidget *Crosshair = HUDWidgetInstance->GetWidgetFromName(TEXT("Image_Crosshair")))
+			{
+				Crosshair->SetRenderScale(FVector2D(2.2f));
+				CrosshairWidget = Crosshair;
+			}
+
 			// 시작 목표 문구: GameMode의 레벨별 목록에서 현재 레벨 것을 찾아 표시
 			// (GameMode BeginPlay에서 하면 위젯 바인딩 전이라 방송을 놓침 → 위젯 바인딩 직후인 여기서 호출)
 			if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
@@ -52,6 +61,20 @@ void ALastSignalPlayerController::BeginPlay()
 					HUDComponent->SetMissionObjective(*Objective);
 			}
 		}
+	}
+}
+
+void ALastSignalPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	// 정조준(우클릭) 중에는 크로스헤어 숨김 — 조준경/가늠자로 조준하니까
+	if (UWidget *Crosshair = CrosshairWidget.Get())
+	{
+		const APlayerCharacter *PlayerCharacter = Cast<APlayerCharacter>(GetPawn());
+		const APrimaryWeapon *Weapon = PlayerCharacter ? PlayerCharacter->GetCurrentWeapon() : nullptr;
+		const bool bAiming = Weapon && Weapon->IsAiming();
+		Crosshair->SetRenderOpacity(bAiming ? 0.0f : 1.0f);
 	}
 }
 

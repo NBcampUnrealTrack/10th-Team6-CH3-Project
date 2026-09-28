@@ -48,4 +48,8 @@ struct FLastSignalWeaponHUDData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	int32 MagazineSize = 7;
+
+	// 탄창 밖에 남은 총알 (HUD는 "현재 탄창 / 남은 총알"로 표시)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	int32 ReserveAmmo = 0;
 };

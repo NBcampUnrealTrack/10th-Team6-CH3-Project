@@ -17,6 +17,7 @@ ALastSignalGameMode::ALastSignalGameMode()
 	LevelObjectives.Add(TEXT("L_SafeZone_Spawn"), FText::FromString(TEXT("구조 신호를 따라 지하철로 이동하자")));
 	LevelObjectives.Add(TEXT("L_Subway"), FText::FromString(TEXT("지하철을 통과해 목표 지점으로 이동하자")));
 	LevelObjectives.Add(TEXT("L_SafeZone_Building"), FText::FromString(TEXT("무전기를 찾아라")));
+	LevelObjectives.Add(TEXT("Industrial_Warehouse"), FText::FromString(TEXT("무전기를 찾아라"))); // 새 안전지대 맵 (Scene_Warehouse/Maps)
 	LevelObjectives.Add(TEXT("L_RuinedBuilding"), FText::FromString(TEXT("제한시간 내에 옥상으로 올라가자")));
 	LevelObjectives.Add(TEXT("L_Rooftop"), FText::FromString(TEXT("헬기 착륙 지점으로 이동하자")));
 }

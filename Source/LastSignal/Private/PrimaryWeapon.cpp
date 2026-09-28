@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "PlayerCharacter.h"
+#include "ZombieAICharacter.h"
 #include "InputMappingContext.h"
  
 
@@ -218,6 +219,7 @@ void APrimaryWeapon::UpdateHUD()
         {
             WeaponData.CurrentAmmo = Combat->GetCurrentAmmo();
             WeaponData.MagazineSize = Combat->Stats.MagazineSize;
+            WeaponData.ReserveAmmo = Combat->GetReserveAmmo();
         }
 
         HUD->SetWeapon(WeaponData);
@@ -310,9 +312,8 @@ void APrimaryWeapon::HandleShot(
     
     PlayShotEffects(bHit, HitResult);
 
-    // UI 추가: 맞았을 때만 히트마커를 요청한다.
-
-        if (bHit && EquippedController.IsValid())
+    // UI 추가: 좀비를 맞혔을 때만 히트마커를 요청한다 (bHit는 벽 등 아무거나 맞아도 true라서 대상 확인)
+    if (bHit && Cast<AZombieAICharacter>(HitResult.GetActor()) && EquippedController.IsValid())
     {
         if (ALastSignalPlayerController *LastSignalPC =
                 Cast<ALastSignalPlayerController>(EquippedController.Get()))
@@ -362,6 +363,7 @@ void APrimaryWeapon::HandleAmmoChanged(int32 CurrentAmmo, int32 ReserveAmmo)
         WeaponData.WeaponIcon = WeaponIcon;
         WeaponData.CurrentAmmo = CurrentAmmo;
         WeaponData.MagazineSize = Combat->Stats.MagazineSize;
+        WeaponData.ReserveAmmo = ReserveAmmo;
 
         HUD->SetWeapon(WeaponData);
     }

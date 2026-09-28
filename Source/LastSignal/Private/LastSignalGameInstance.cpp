@@ -3,6 +3,10 @@
 void ULastSignalGameInstance::Init()
 {
 	Super::Init();
+
+	// 화면 왼쪽 위 디버그 글자(BP의 Print String, AddOnScreenDebugMessage)를 게임 전체에서 끔
+	// 디버깅할 때는 콘솔(~)에 EnableAllScreenMessages 입력하면 다시 보임
+	GAreScreenMessagesEnabled = false;
 }
 
 void ULastSignalGameInstance::ResetSaveData()
