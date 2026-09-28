@@ -8,7 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
 #include "Components/SphereComponent.h"
-
+#include "BrainComponent.h"
 // UI 추가
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
@@ -72,7 +72,6 @@ void AZombieAICharacter::SetMovementSpeed(float NewSpeed)
     }
 }
 
-// 외부(플레이어 사격 등)에서 ApplyDamage 호출 시 자동 실행
 float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &DamageEvent, AController *EventInstigator, AActor *DamageCauser)
 {
     float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
@@ -86,7 +85,7 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
     UE_LOG(LogTemp, Warning, TEXT("[Zombie] Took Damage: %f / Remaining HP: %f (%.1f%%)"),
            ActualDamage, CurrentHP, GetHPRatio() * 100.0f);
 
-    //  [추가] 체력이 50% 이하이고, 아직 살아있는 경우 이동 속도를 절반으로 감속
+    // 체력이 50% 이하이고, 아직 살아있는 경우 이동 속도를 절반으로 감속
     if (GetHPRatio() <= 0.5f && GetHPRatio() > 0.0f)
     {
         SetMovementSpeed(WalkSpeed * 0.5f);
@@ -96,12 +95,18 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
     if (CurrentHP <= 0.0f)
     {
         bIsDead = true;
+        bIsAttacking = false;
+
+        // 진행 중인 공격 몽타주를 즉시 중단 (블렌드 아웃 0초)
+        if (UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.0f);
+        }
 
         if (ALastSignalGameMode *GameMode = Cast<ALastSignalGameMode>(UGameplayStatics::GetGameMode(this)))
             GameMode->OnZombieKilled(); // 킬카운트 증가 (게임모드로 보냄)
 
-
-       // UI 추가
+        // UI 추가
         // 플레이어가 이 좀비를 처치한 경우 HUD에 킬 전달
         if (EventInstigator)
         {
@@ -123,12 +128,17 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
         // 1. AI 동작 중단 및 빙의 해제
         if (AAIController *AICon = Cast<AAIController>(GetController()))
         {
+            if (UBrainComponent *Brain = AICon->GetBrainComponent())
+            {
+                Brain->StopLogic(TEXT("Dead")); // 진행 중인 BT 태스크 중단
+            }
             AICon->StopMovement();
             AICon->UnPossess();
         }
 
         // 2. 플레이어/다른 AI와의 충돌 제거 (시체 통과 가능 처리)
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        HeadHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 시체 머리가 총알을 막는 문제 방지
 
         // 3. 이동 컴포넌트 비활성화
         if (UCharacterMovementComponent *Movement = GetCharacterMovement())
