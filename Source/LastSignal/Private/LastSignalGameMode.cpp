@@ -4,6 +4,8 @@
 #include "PlayerCharacter.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
+#include "EngineUtils.h"
 
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
@@ -140,23 +142,37 @@ void ALastSignalGameMode::OnGoalReached(FName NextLevel) // 클리어 트리거
     if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
     {
         if (ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
-        {
             CurrentGameInstance->SavedKillCount = CurrentGameState->KillCount;
-
-            // 지금이 스톱워치 단계인지 카운트다운/탈출 단계인지에 따라, 다음 레벨에서 뭘로 이어야 하는지가 갈림
-            CurrentGameInstance->bTimeLimitStarted = (CurrentGameState->TimerMode != ETimerMode::Stopwatch);
-
-            if (CurrentGameState->TimerMode == ETimerMode::Stopwatch)
-                CurrentGameInstance->SavedPlayTime = CurrentGameState->TimerValue; // 스톱워치였으면 흐른 시간 저장
-            else
-                CurrentGameInstance->SavedRemainingTime = CurrentGameState->TimerValue; // 카운트다운/탈출이었으면 저장
-        }
+        SaveTimerToGameInstance();
 
         // 지금 HP도 같이 저장 — 안 그러면 다음 레벨에서 무조건 풀피로 리스폰됨
         if (APlayerCharacter *CurrentPlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
             CurrentGameInstance->SavedHP = CurrentPlayerCharacter->GetCurrentHealth();
     }
     UGameplayStatics::OpenLevel(this, NextLevel);
+}
+
+void ALastSignalGameMode::SaveTimerToGameInstance()
+{
+    ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
+    const ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>();
+    if (!CurrentGameInstance || !CurrentGameState)
+        return;
+
+    // 탈출 타이머는 0이 되면 클리어라서 카운트다운으로 이어 붙이면 안 됨 → 레벨 시작 때 저장값 그대로 둠
+    if (CurrentGameState->TimerMode == ETimerMode::Escape)
+        return;
+    // 카운트다운이 0이 돼서 죽은 거면 0부터 이어 붙이면 바로 또 게임오버 → 레벨 시작 때 저장값 그대로 둠
+    if (CurrentGameState->TimerMode == ETimerMode::Countdown && CurrentGameState->TimerValue <= 0.f)
+        return;
+
+    // 지금이 스톱워치 단계인지 카운트다운 단계인지에 따라, 다음 레벨(또는 RETRY)에서 뭘로 이어야 하는지가 갈림
+    CurrentGameInstance->bTimeLimitStarted = (CurrentGameState->TimerMode != ETimerMode::Stopwatch);
+
+    if (CurrentGameState->TimerMode == ETimerMode::Stopwatch)
+        CurrentGameInstance->SavedPlayTime = CurrentGameState->TimerValue; // 스톱워치였으면 흐른 시간 저장
+    else
+        CurrentGameInstance->SavedRemainingTime = CurrentGameState->TimerValue; // 카운트다운이었으면 남은 시간 저장
 }
 
 void ALastSignalGameMode::OnZombieKilled() // 좀비 킬 카운트 추가 구현
@@ -293,11 +309,23 @@ void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리
 {
     ClearRealSeconds = FPlatformTime::Seconds(); // 플레이 시간은 여기서 끝 (시계는 UpdateTimer에서 이미 멈춤)
 
-    // 엔딩 음악 + 헬기 소리 (헬기는 크게 시작해서 40초 동안 점점 멀어짐). 크레딧이 뜨면 크레딧 음악으로 교체됨
+    // 옥상 레벨에서 나던 소리(헬기, 좀비 등)는 전부 서서히 끔 → 엔딩 나레이션이 잘 들리게
+    // (나레이션은 아래 OnEndingStarted 이후에 새로 재생되니까 영향 없음. 음악/환경음은 액터 소속이 아니라 여기 안 걸림)
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+        TInlineComponentArray<UAudioComponent *> AudioComponents(*It);
+        for (UAudioComponent *Audio : AudioComponents)
+        {
+            if (Audio->IsPlaying())
+                Audio->FadeOut(1.5f, 0.0f);
+        }
+    }
+
+    // 엔딩 음악 + 멀어지는 헬기 소리 (나레이션을 가리지 않게 작게 시작해서 20초 동안 더 작아짐). 크레딧이 뜨면 크레딧 음악으로 교체됨
     if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
     {
         CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Ending.BGM_Ending")), 2.0f, 0.35f);
-        CurrentGameInstance->PlayAmbience(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Helicopter.Helicopter")), 0.8f, 40.0f, 0.05f);
+        CurrentGameInstance->PlayAmbience(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Helicopter.Helicopter")), 0.2f, 20.0f, 0.03f);
     }
 
     OnEndingStarted(); // BP로 신호 → BP_LastSignalGameMode의 Event On Ending Started 실행

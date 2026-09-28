@@ -1,4 +1,5 @@
 #include "MainMenuWidget.h"
+#include "LastSignalGameMode.h"
 #include "Blueprint/WidgetTree.h"
 #include "LastSignalPlayerController.h"
 #include "LastSignalGameInstance.h"
@@ -755,6 +756,15 @@ void UGameOverWidget::NativeConstruct()
 void UGameOverWidget::HandleRetryClicked()
 {
     // 예전 WBP_GameOver와 같은 동작: 지금 레벨을 처음부터 (저장값은 레벨 시작 시점 것으로 복원됨)
+    // 게임오버 때 바꾼 UI 전용 입력은 레벨을 다시 열어도 그대로 남음 → 게임 입력으로 되돌리고 열기 (안 하면 조작 안 되고 마우스만 보임)
+    if (APlayerController *PlayerController = GetOwningPlayer())
+    {
+        PlayerController->SetInputMode(FInputModeGameOnly());
+        PlayerController->bShowMouseCursor = false;
+    }
+    // 시계는 레벨 시작 값이 아니라 죽은 순간 값에서 이어감 (스톱워치면 스톱워치, 카운트다운이면 카운트다운)
+    if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
+        GameMode->SaveTimerToGameInstance();
     UGameplayStatics::OpenLevel(this, FName(UGameplayStatics::GetCurrentLevelName(this)));
 }
 

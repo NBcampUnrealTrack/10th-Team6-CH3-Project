@@ -49,6 +49,9 @@ protected:
 	// 왼쪽 아래 체력 (슬라이드쇼 중엔 숨김)
 	TWeakObjectPtr<UWidget> HealthWidget;
 
+	// 오른쪽 아래 스페셜 스킬 게이지 (슬라이드쇼 중엔 숨김)
+	TWeakObjectPtr<UWidget> SkillWidget;
+
 	// 인트로/엔딩 슬라이드쇼(WBP_StorySlideshow)가 화면에 떠 있는지
 	bool IsStorySlideshowOnScreen() const;
 

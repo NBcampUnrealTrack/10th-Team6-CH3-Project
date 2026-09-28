@@ -5,6 +5,7 @@
 #include "InteractPromptWidget.h"
 #include "HudWatchWidget.h"
 #include "HudHealthWidget.h"
+#include "HudSkillWidget.h"
 #include "MainMenuWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
@@ -13,6 +14,8 @@
 #include "PrimaryWeapon.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Components/TextBlock.h"
+#include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
 
 ALastSignalPlayerController::ALastSignalPlayerController()
@@ -52,10 +55,32 @@ void ALastSignalPlayerController::BeginPlay()
 				Health->BindHUDComponent(HUDComponent);
 				HealthWidget = Health;
 			}
+			// 스페셜 스킬 게이지: 원래 배너(전체가 서서히 밝아짐 + PRESS)를 같은 자리에서 왼쪽→오른쪽 차오르는 게이지로 교체
+			if (UHudSkillWidget *Skill = CreateWidget<UHudSkillWidget>(this, UHudSkillWidget::StaticClass()))
+			{
+				if (Skill->TakeOverFromHUD(HUDWidgetInstance))
+				{
+					Skill->AddToViewport(0);
+					SkillWidget = Skill;
+				}
+			}
+
 			for (const TCHAR *OldTextName : {TEXT("Text_Time"), TEXT("Text_Score"), TEXT("ProgressBar_HP")})
 			{
 				if (UWidget *OldText = HUDWidgetInstance->GetWidgetFromName(OldTextName))
 					OldText->SetVisibility(ESlateVisibility::Collapsed);
+			}
+
+			// 오른쪽 아래 탄약 숫자도 체력과 같은 폰트(Black Ops One, 메인메뉴 제목 폰트)로. 크기는 WBP 그대로
+			if (UTextBlock *AmmoText = Cast<UTextBlock>(HUDWidgetInstance->GetWidgetFromName(TEXT("Text_AmmoCount"))))
+			{
+				if (UFont *BlackOpsOne = LoadObject<UFont>(nullptr, TEXT("/Game/UI/Fonts/BlackOpsOne_Font.BlackOpsOne_Font")))
+				{
+					FSlateFontInfo Font = AmmoText->GetFont();
+					Font.FontObject = BlackOpsOne;
+					Font.TypefaceFontName = NAME_None;
+					AmmoText->SetFont(Font);
+				}
 			}
 
 			// 크로스헤어가 작아서 2.2배로 키움 (WBP 수정 없이). 조준 중 숨김은 PlayerTick에서
@@ -91,7 +116,7 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 
 	// 슬라이드쇼/페이드인 중엔 시계, 체력 숨김 (Hidden으로 하면 위젯 Tick이 멈춰서 투명도로)
 	const bool bSlideshowOnScreen = IsStorySlideshowOnScreen();
-	for (UWidget *CodeHudWidget : {WatchWidget.Get(), HealthWidget.Get()})
+	for (UWidget *CodeHudWidget : {WatchWidget.Get(), HealthWidget.Get(), SkillWidget.Get()})
 	{
 		if (CodeHudWidget)
 			CodeHudWidget->SetRenderOpacity(IsInCutscene() ? 0.0f : 1.0f);
