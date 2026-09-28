@@ -54,8 +54,7 @@ void AWeaponSelectionBox::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AA
 {
     if (APlayerCharacter *Player = Cast<APlayerCharacter>(OtherActor))
     {
-        Player->NearbyInteractable = this;
-        UE_LOG(LogTemp, Log, TEXT("[WeaponSelectionBox] 상자 범위 진입 -> F키 상호작용 가능"));
+        Player->NearbyInteractable = this;;
     }
 }
 
@@ -66,7 +65,6 @@ void AWeaponSelectionBox::OnOverlapEnd(UPrimitiveComponent *OverlappedComp, AAct
         if (Player->NearbyInteractable == this)
         {
             Player->NearbyInteractable = nullptr;
-            UE_LOG(LogTemp, Log, TEXT("[WeaponSelectionBox] 상자 범위 이탈"));
         }
     }
 }
@@ -76,7 +74,6 @@ void AWeaponSelectionBox::Interact_Implementation(AActor *Interactor)
     if (!Interactor)
         return;
 
-    UE_LOG(LogTemp, Log, TEXT("[WeaponSelectionBox] F 키 상호작용 발생! 1번 주무기 지급"));
     SelectAndEquipWeapon(0, Interactor);
 }
 
@@ -88,7 +85,6 @@ void AWeaponSelectionBox::SelectAndEquipWeapon(int32 WeaponIndex, AActor *Intera
     TSubclassOf<APrimaryWeapon> SelectedWeaponClass = AvailablePrimaryWeapons[WeaponIndex];
     if (!SelectedWeaponClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[WeaponSelectionBox] %d번 슬롯의 무기 클래스가 지정되지 않았습니다!"), WeaponIndex);
         return;
     }
 
