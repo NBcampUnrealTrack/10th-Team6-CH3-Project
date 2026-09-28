@@ -1,4 +1,4 @@
-#include "AnimNotify_ZombieHitCheck.h"
+﻿#include "AnimNotify_ZombieHitCheck.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Actor.h"
