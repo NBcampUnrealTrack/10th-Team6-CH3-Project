@@ -3,6 +3,7 @@
 #include "LastSignalPlayerController.h"
 #include "LastSignalHUDWidget.h"
 #include "InteractPromptWidget.h"
+#include "MainMenuWidget.h"
 #include "LastSignalPlayerHUDComponent.h"
 #include "LastSignalGameMode.h"
 #include "Blueprint/UserWidget.h"
@@ -56,14 +57,16 @@ void ALastSignalPlayerController::TogglePauseMenu()
 
     if (bNewPaused)
     {
-        if (PauseMenuClass) // WBP_Pause 아직 없으면 위젯 생성은 그냥 스킵 (Pause 자체는 동작)
-        {
-            PauseMenuWidgetInstance = CreateWidget<UUserWidget>(this, PauseMenuClass);
-            if (PauseMenuWidgetInstance)
-                PauseMenuWidgetInstance->AddToViewport();
-        }
+        // 코드로 만든 일시정지 화면(UPauseMenuWidget)을 쓴다. PauseMenuClass(WBP_Pause)는 더 이상 사용 안 함
+        PauseMenuWidgetInstance = CreateWidget<UPauseMenuWidget>(this, UPauseMenuWidget::StaticClass());
 
-        SetInputMode(FInputModeUIOnly());
+        FInputModeUIOnly InputMode;
+        if (PauseMenuWidgetInstance)
+        {
+            PauseMenuWidgetInstance->AddToViewport(20);
+            InputMode.SetWidgetToFocus(PauseMenuWidgetInstance->TakeWidget()); // P/ESC로 계속하기를 받으려면 포커스 필요
+        }
+        SetInputMode(InputMode);
         bShowMouseCursor = true;
     }
     else
