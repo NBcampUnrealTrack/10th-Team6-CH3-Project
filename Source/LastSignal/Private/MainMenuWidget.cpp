@@ -406,3 +406,239 @@ void UPauseMenuWidget::HandleMainMenuUnhovered()
 {
     MainMenuText->SetColorAndOpacity(FSlateColor(Ink));
 }
+
+// ===================== 엔딩 크레딧 =====================
+
+namespace
+{
+    constexpr float StatsFadeIn = 1.0f;
+    constexpr float StatsHoldUntil = 5.0f;
+    constexpr float StatsFadeOutEnd = 6.0f;
+
+    // 한글(팀원 이름)은 Black Ops One에 없어서 Pretendard로
+    UTextBlock *MakeBodyText(UWidgetTree *Tree, const FString &String, int32 Size, const FLinearColor &Color)
+    {
+        UTextBlock *Text = Tree->ConstructWidget<UTextBlock>();
+        Text->SetText(FText::FromString(String));
+        FSlateFontInfo Font = Text->GetFont();
+        if (UFont *Pretendard = LoadObject<UFont>(nullptr, TEXT("/Game/UI/Fonts/Pretendard_Bold_Font.Pretendard_Bold_Font")))
+        {
+            Font.FontObject = Pretendard;
+            Font.TypefaceFontName = NAME_None;
+        }
+        Font.Size = Size;
+        Text->SetFont(Font);
+        Text->SetColorAndOpacity(FSlateColor(Color));
+        Text->SetJustification(ETextJustify::Center);
+        return Text;
+    }
+
+    struct FCreditMember
+    {
+        const TCHAR *Name;
+        const TCHAR *Role;
+    };
+
+    const FCreditMember TeamMembers[] = {
+        {TEXT("한누리"), TEXT("Team Lead · Game Systems · UI · Cinematics & Narration · Character")},
+        {TEXT("이영빈"), TEXT("Sub Lead · Weapons & Gunplay · Combat Animation · VFX")},
+        {TEXT("이승현"), TEXT("Zombie AI · Environment Art · Level Design")},
+        {TEXT("이원창"), TEXT("Player Skills · Combat · Items · Audio")},
+        {TEXT("곽성은"), TEXT("Lead Level Design · Level Layout · Level Building · VFX")},
+        {TEXT("신나린"), TEXT("HUD")},
+    };
+
+    const TCHAR *AssetLines[] = {
+        TEXT("M4 / M4A1 Carbine – Modular AR-15 Tactical Rifle"),
+        TEXT("SR-25 / M110 Designated Marksman Rifle – Fully Modular"),
+        TEXT("Semi-auto Shotgun Black Lake 153 – Polymer"),
+        TEXT("Game-Ready Modular Rigged SWAT Lowpoly 3D Model"),
+        TEXT("Zombies – 6 Characters, All Animations"),
+        TEXT("Modern Pistols SFX · Modern Assault Rifles SFX · Modern Shotguns SFX"),
+        TEXT("Derelict Corridor (Megascans) · Subway Train · Metro Maintenance Station"),
+        TEXT("Hospital Corridor · Abandoned Power Plant · Warehouse Storage"),
+        TEXT("Scene Warehouse · Scene Unfinished Building · Soul: City"),
+        TEXT("Zombie Female · Zombie Animation Pack · Dead Bodies Poses"),
+        TEXT("First Person Rifle Animations · M1911 · Trace VFX · Footprints FX"),
+        TEXT("Realistic Starter VFX Pack Vol.2 · Film & VHS Filters · Muzzle Flash"),
+        TEXT("HeartBeats · Essential Footsteps · Free Game Sounds Vol.1 · ORPH Tools"),
+    };
+}
+
+TSharedRef<SWidget> UCreditsWidget::RebuildWidget()
+{
+    if (WidgetTree && !WidgetTree->RootWidget)
+        BuildWidgetTree();
+
+    return Super::RebuildWidget();
+}
+
+void UCreditsWidget::BuildWidgetTree()
+{
+    UCanvasPanel *Root = WidgetTree->ConstructWidget<UCanvasPanel>();
+    WidgetTree->RootWidget = Root;
+
+    UImage *Black = WidgetTree->ConstructWidget<UImage>();
+    Black->SetColorAndOpacity(FLinearColor::Black);
+    UCanvasPanelSlot *BlackSlot = Root->AddChildToCanvas(Black);
+    BlackSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    BlackSlot->SetOffsets(FMargin(0.0f));
+
+    // ① 기록: 가운데에 라벨(주황, 작게) + 값(크게)
+    UVerticalBox *Stats = WidgetTree->ConstructWidget<UVerticalBox>();
+    UCanvasPanelSlot *StatsSlot = Root->AddChildToCanvas(Stats);
+    StatsSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+    StatsSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+    StatsSlot->SetAutoSize(true);
+
+    auto AddStat = [&](const TCHAR *Label, const FString &Value, float TopPadding)
+    {
+        UTextBlock *LabelText = MakeMenuText(WidgetTree, Label, 22, 450);
+        LabelText->SetColorAndOpacity(FSlateColor(Amber));
+        LabelText->SetJustification(ETextJustify::Center);
+        UVerticalBoxSlot *LabelSlot = Stats->AddChildToVerticalBox(LabelText);
+        LabelSlot->SetHorizontalAlignment(HAlign_Center);
+        LabelSlot->SetPadding(FMargin(0.0f, TopPadding, 0.0f, 0.0f));
+
+        UTextBlock *ValueText = MakeMenuText(WidgetTree, Value, 80, 100);
+        ValueText->SetJustification(ETextJustify::Center);
+        UVerticalBoxSlot *ValueSlot = Stats->AddChildToVerticalBox(ValueText);
+        ValueSlot->SetHorizontalAlignment(HAlign_Center);
+        ValueSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+    };
+    const int32 TotalSeconds = FMath::Max(0, FMath::FloorToInt(PlayTimeSeconds));
+    AddStat(TEXT("PLAY TIME"), FString::Printf(TEXT("%02d:%02d"), TotalSeconds / 60, TotalSeconds % 60), 0.0f);
+    AddStat(TEXT("ZOMBIES KILLED"), FString::FromInt(KillCount), 60.0f);
+    Stats->SetRenderOpacity(0.0f);
+    StatsPanel = Stats;
+
+    // ② 크레딧: 화면 아래 끝에서 시작해서 위로 올라감
+    UVerticalBox *Scroll = WidgetTree->ConstructWidget<UVerticalBox>();
+    UCanvasPanelSlot *ScrollSlot = Root->AddChildToCanvas(Scroll);
+    ScrollSlot->SetAnchors(FAnchors(0.5f, 1.0f));
+    ScrollSlot->SetAlignment(FVector2D(0.5f, 0.0f));
+    ScrollSlot->SetAutoSize(true);
+
+    auto AddLine = [&](UTextBlock *Text, float TopPadding)
+    {
+        UVerticalBoxSlot *LineSlot = Scroll->AddChildToVerticalBox(Text);
+        LineSlot->SetHorizontalAlignment(HAlign_Center);
+        LineSlot->SetPadding(FMargin(0.0f, TopPadding, 0.0f, 0.0f));
+    };
+    auto AddHeader = [&](const TCHAR *Header)
+    {
+        UTextBlock *HeaderText = MakeMenuText(WidgetTree, Header, 22, 450);
+        HeaderText->SetColorAndOpacity(FSlateColor(Amber));
+        HeaderText->SetJustification(ETextJustify::Center);
+        AddLine(HeaderText, 120.0f);
+    };
+    const FLinearColor Soft(0.7f, 0.72f, 0.74f, 1.0f);
+
+    UTextBlock *Logo = MakeMenuText(WidgetTree, TEXT("LAST SIGNAL"), 96, 120);
+    Logo->SetJustification(ETextJustify::Center);
+    AddLine(Logo, 0.0f);
+
+    AddHeader(TEXT("DEVELOPED BY"));
+    for (const FCreditMember &Member : TeamMembers)
+    {
+        AddLine(MakeBodyText(WidgetTree, Member.Name, 34, Ink), 44.0f);
+        AddLine(MakeBodyText(WidgetTree, Member.Role, 20, Soft), 6.0f);
+    }
+
+    AddHeader(TEXT("VOICE"));
+    AddLine(MakeBodyText(WidgetTree, TEXT("Narration generated with ElevenLabs"), 24, Ink), 36.0f);
+    AddLine(MakeBodyText(WidgetTree, TEXT("elevenlabs.io"), 20, Soft), 6.0f);
+
+    AddHeader(TEXT("ASSETS VIA FAB"));
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(AssetLines); ++Index)
+        AddLine(MakeBodyText(WidgetTree, AssetLines[Index], 20, Soft), Index == 0 ? 36.0f : 12.0f);
+
+    AddHeader(TEXT("ADDITIONAL"));
+    AddLine(MakeBodyText(WidgetTree, TEXT("Vintage Radio Transceiver – Poly Haven (CC0)"), 20, Soft), 36.0f);
+    AddLine(MakeBodyText(WidgetTree, TEXT("Fonts: Pretendard · Black Ops One (SIL Open Font License)"), 20, Soft), 12.0f);
+    AddLine(MakeBodyText(WidgetTree, TEXT("Made with Unreal Engine 5"), 20, Soft), 12.0f);
+
+    UTextBlock *Thanks = MakeMenuText(WidgetTree, TEXT("THANK YOU FOR PLAYING"), 44, 200);
+    Thanks->SetJustification(ETextJustify::Center);
+    AddLine(Thanks, 200.0f);
+
+    Scroll->SetVisibility(ESlateVisibility::HitTestInvisible);
+    ScrollPanel = Scroll;
+}
+
+void UCreditsWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    SetIsFocusable(true);
+    if (APlayerController *PlayerController = GetOwningPlayer())
+    {
+        FInputModeUIOnly InputMode;
+        InputMode.SetWidgetToFocus(TakeWidget());
+        PlayerController->SetInputMode(InputMode);
+        PlayerController->bShowMouseCursor = false; // 영화 크레딧처럼 커서 숨김 (클릭/키로 넘기기는 됨)
+    }
+}
+
+void UCreditsWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    ElapsedTime += InDeltaTime;
+
+    if (!bScrolling)
+    {
+        // ① 기록: 1초 동안 나타남 → 5초까지 유지 → 6초까지 사라짐
+        const float FadeIn = FMath::Clamp(ElapsedTime / StatsFadeIn, 0.0f, 1.0f);
+        const float FadeOut = FMath::Clamp((StatsFadeOutEnd - ElapsedTime) / (StatsFadeOutEnd - StatsHoldUntil), 0.0f, 1.0f);
+        StatsPanel->SetRenderOpacity(FMath::Min(FadeIn, FadeOut));
+        if (ElapsedTime >= StatsFadeOutEnd)
+            bScrolling = true;
+        return;
+    }
+
+    // ② 크레딧: 화면 아래에서 위로. 전부 화면 위로 빠져나가면 메인메뉴
+    ScrollOffset += ScrollSpeed * InDeltaTime;
+    ScrollPanel->SetRenderTranslation(FVector2D(0.0f, -ScrollOffset));
+
+    const float ScreenHeight = MyGeometry.GetLocalSize().Y;
+    const float ContentHeight = ScrollPanel->GetDesiredSize().Y;
+    if (ScreenHeight > 0.0f && ContentHeight > 0.0f && ScrollOffset > ScreenHeight + ContentHeight)
+        GoToMainMenu();
+}
+
+void UCreditsWidget::HandleSkipInput()
+{
+    if (!bScrolling)
+    {
+        bScrolling = true; // 기록 → 바로 크레딧
+        StatsPanel->SetRenderOpacity(0.0f);
+    }
+    else if (ScrollSpeed < 100.0f)
+    {
+        ScrollSpeed *= 6.0f; // 빨리 감기
+    }
+    else
+    {
+        GoToMainMenu();
+    }
+}
+
+FReply UCreditsWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+    HandleSkipInput();
+    return FReply::Handled();
+}
+
+FReply UCreditsWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
+{
+    HandleSkipInput();
+    return FReply::Handled();
+}
+
+void UCreditsWidget::GoToMainMenu()
+{
+    if (bLeaving)
+        return;
+    bLeaving = true;
+    UGameplayStatics::OpenLevel(this, TEXT("L_MainMenu"));
+}

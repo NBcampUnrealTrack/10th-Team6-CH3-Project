@@ -128,3 +128,40 @@ private:
     UPROPERTY()
     TObjectPtr<UTextBlock> MainMenuText;
 };
+
+// 엔딩 크레딧. 검은 배경에 ① 기록(PLAY TIME, ZOMBIES KILLED) → ② 아래에서 위로 올라가는 크레딧 → 메인메뉴.
+// 클릭/키: 기록 중이면 크레딧으로, 크레딧 중이면 1번째는 빨리 감기, 2번째는 메인메뉴. ALastSignalGameMode::ShowCredits가 생성한다.
+UCLASS()
+class LASTSIGNAL_API UCreditsWidget : public UUserWidget
+{
+    GENERATED_BODY()
+
+public:
+    // AddToViewport 전에 채워야 함 (화면은 AddToViewport 때 만들어짐)
+    float PlayTimeSeconds = 0.0f;
+    int32 KillCount = 0;
+
+protected:
+    virtual TSharedRef<SWidget> RebuildWidget() override;
+    virtual void NativeConstruct() override;
+    virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
+    virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+    virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+
+private:
+    void BuildWidgetTree();
+    void HandleSkipInput();
+    void GoToMainMenu();
+
+    UPROPERTY()
+    TObjectPtr<UWidget> StatsPanel;
+
+    UPROPERTY()
+    TObjectPtr<UWidget> ScrollPanel;
+
+    float ElapsedTime = 0.0f;
+    float ScrollOffset = 0.0f; // 크레딧이 위로 올라간 거리
+    float ScrollSpeed = 70.0f; // 초당 올라가는 거리 (빨리 감기 시 6배)
+    bool bScrolling = false;
+    bool bLeaving = false;
+};

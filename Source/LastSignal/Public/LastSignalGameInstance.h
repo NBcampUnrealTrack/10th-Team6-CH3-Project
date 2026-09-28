@@ -54,6 +54,9 @@ public:
     // 새 게임 시작 시 위의 저장값을 전부 기본값으로 되돌린다 (메인메뉴 → 다시 시작해도 이전 판이 안 이어지게)
     void ResetSaveData();
 
+    // 새 게임을 시작한 실제 시각 (FPlatformTime::Seconds). 크레딧의 PLAY TIME 계산용 — UPROPERTY 아님(ResetSaveData 대상 아님)
+    double GameStartRealSeconds = 0.0;
+
   private:
 	virtual void Init() override;
 };
