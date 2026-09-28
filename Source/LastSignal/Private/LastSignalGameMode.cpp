@@ -33,6 +33,22 @@ ULastSignalPlayerHUDComponent *ALastSignalGameMode::GetLocalHUDComponent() const
     return nullptr;
 }
 
+void ALastSignalGameMode::InitGame(const FString &MapName, const FString &Options, FString &ErrorMessage)
+{
+    Super::InitGame(MapName, Options, ErrorMessage);
+
+    // 첫 레벨로 들어오면 새 게임 → 이전 판 저장값 초기화
+    // (InitGame은 모든 액터 BeginPlay보다 먼저 실행 → 캐릭터가 무기/탄약을 복원하기 전에 지워짐)
+    if (UGameplayStatics::GetCurrentLevelName(this) == TEXT("L_SafeZone_Spawn"))
+    {
+        if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+        {
+            CurrentGameInstance->ResetSaveData();
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] 새 게임 시작 - GameInstance 저장값 초기화"));
+        }
+    }
+}
+
 void ALastSignalGameMode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -53,7 +69,10 @@ if (CurrentGameInstance) // 저장된 값이 있으면 KillCount/HP부터 복원
             CurrentPlayerCharacter->SetCurrentHealth(CurrentGameInstance->SavedHP);  // 위에서 이미 캐스팅한 CurrentPlayerCharacter 재사용
     
         if (ULastSignalPlayerHUDComponent *HUD = GetLocalHUDComponent())
+        {
             HUD->SetHP(CurrentGameInstance->SavedHP);
+            HUD->AddScore(CurrentGameInstance->SavedKillCount); // 이전 레벨 점수 이어받기 (HUD Score는 레벨마다 0부터 시작)
+        }
 
     }
 
