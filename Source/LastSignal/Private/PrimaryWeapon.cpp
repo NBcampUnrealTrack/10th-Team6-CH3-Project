@@ -14,6 +14,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
+#include "PlayerCharacter.h"
 #include "InputMappingContext.h"
  
 
@@ -261,10 +262,19 @@ void APrimaryWeapon::Unequip()
 
 void APrimaryWeapon::FirePressed()
 {
-    if (bEquipped)
+    if (!bEquipped)
     {
-        Combat->StartFire();
+        return;
     }
+    if (APlayerCharacter *Player = Cast<APlayerCharacter>(GetOwner()))
+    {
+        if (Player->IsControlLocked())
+        {
+            return;
+        }
+    }
+
+    Combat->StartFire();
 }
 
 void APrimaryWeapon::FireReleased()
@@ -274,10 +284,19 @@ void APrimaryWeapon::FireReleased()
 
 void APrimaryWeapon::ReloadPressed()
 {
-    if (bEquipped)
+    if (!bEquipped)
     {
-        Combat->StartReload();
+        return;
     }
+    if (APlayerCharacter *Player = Cast<APlayerCharacter>(GetOwner()))
+    {
+        if (Player->IsControlLocked())
+        {
+            return;
+        }
+    }
+
+    Combat->StartReload();
 }
 
 void APrimaryWeapon::HandleShot(
@@ -358,6 +377,13 @@ void APrimaryWeapon::AimPressed()
     if (!bEquipped)
     {
         return;
+    }
+    if (APlayerCharacter *Player = Cast<APlayerCharacter>(GetOwner()))
+    {
+        if (Player->IsControlLocked())
+        {
+            return;
+        }
     }
 
     bAimHeld = true;
