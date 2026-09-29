@@ -164,11 +164,6 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 		SkipIntro();
 	}
 	const bool bSlideshowOnScreen = IsStorySlideshowOnScreen();
-	for (UWidget *CodeHudWidget : {WatchWidget.Get(), HealthWidget.Get(), SkillWidget.Get()})
-	{
-		if (CodeHudWidget)
-			CodeHudWidget->SetRenderOpacity(IsInCutscene() ? 0.0f : 1.0f);
-	}
 
 	// 인트로가 끝난 순간: 검은 화면에서 2초 동안 밝아짐. 그동안은 조작 불가, HUD도 숨긴 채로
 	if (bStorySlideshowWasOnScreen && !bSlideshowOnScreen && UGameplayStatics::GetCurrentLevelName(this) == TEXT("L_SafeZone_Spawn"))
@@ -180,9 +175,24 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 			ControlledPawn->DisableInput(this); // 이동/시점/사격 막음 (ESC 일시정지는 컨트롤러 입력이라 그대로)
 		bShowMouseCursor = false;
 		SetInputMode(FInputModeGameOnly());
+		if (HUDWidgetInstance)
+			HUDWidgetInstance->SetVisibility(ESlateVisibility::SelfHitTestInvisible); // 화면과 같이 서서히 나타나게 지금 켬 (투명도는 위에서 0 → 1)
 		GetWorldTimerManager().SetTimer(IntroFadeTimerHandle, this, &ALastSignalPlayerController::FinishIntroFade, FadeSeconds, false);
 	}
 	bStorySlideshowWasOnScreen = bSlideshowOnScreen;
+
+	// (페이드인 시작 처리 뒤에 계산해야 슬라이드쇼가 사라진 첫 프레임에 HUD가 번쩍 안 보임)
+	// HUD 투명도: 슬라이드쇼 중엔 0, 인트로 뒤 페이드인 동안엔 화면과 같이 0 → 1로 서서히, 그 외엔 1
+	float HudAlpha = 1.0f;
+	if (bSlideshowOnScreen)
+		HudAlpha = 0.0f;
+	else if (GetWorldTimerManager().IsTimerActive(IntroFadeTimerHandle))
+		HudAlpha = FMath::Clamp(GetWorldTimerManager().GetTimerElapsed(IntroFadeTimerHandle) / FMath::Max(GetWorldTimerManager().GetTimerRate(IntroFadeTimerHandle), 0.01f), 0.0f, 1.0f);
+	for (UWidget *HudPart : {WatchWidget.Get(), HealthWidget.Get(), SkillWidget.Get(), static_cast<UWidget *>(HUDWidgetInstance.Get())})
+	{
+		if (HudPart)
+			HudPart->SetRenderOpacity(HudAlpha);
+	}
 
 }
 
