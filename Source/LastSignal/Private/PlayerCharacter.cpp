@@ -14,6 +14,8 @@
 #include "InputMappingContext.h"
 #include "InteractableTarget.h"
 #include "PrimaryWeapon.h"
+#include "Sound/SoundBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "SkillComponent.h"
 
 // UI 추가
@@ -485,6 +487,19 @@ void APlayerCharacter::Landed(const FHitResult &Hit)
 }
 
 // 보행은 반복 파형, 점프와 착지는 한 번 이동한 뒤 복귀하는 파형으로 합성한다.
+void APlayerCharacter::PlayFootstep(bool bSprinting)
+{
+    // 콘크리트 부츠 소리 (큐 안에 여러 버전이 있어 매번 조금씩 다르게 남). 달리면 달리기 소리, 내 발소리라 위치 없이 작게
+    if (USoundBase *Step = LoadObject<USoundBase>(nullptr, bSprinting
+            ? TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Run_8_Cue.Footstep_Concrete_Boots_Run_8_Cue")
+            : TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Jog_8_Cue.Footstep_Concrete_Boots_Jog_8_Cue")))
+    {
+        // 같은 소리가 기계처럼 반복되지 않게 크기 ±10%, 높낮이 ±5% 랜덤 (게임 발소리의 기본 처리). 달리기는 조금 더 크게
+        const float Volume = FootstepVolume * (bSprinting ? 1.25f : 1.0f) * FMath::FRandRange(0.9f, 1.1f);
+        UGameplayStatics::PlaySound2D(this, Step, Volume, FMath::FRandRange(0.95f, 1.05f));
+    }
+}
+
 void APlayerCharacter::UpdateMovementBob(float DeltaTime)
 {
     if (!FirstPersonCameraComponent || !IsLocallyControlled())
@@ -548,6 +563,15 @@ void APlayerCharacter::UpdateMovementBob(float DeltaTime)
         const float PhaseStep = DeltaTime * 2.0f * PI * FMath::Clamp(SpeedRatio, 0.5f, 1.0f);
         MovementBobPhase = FMath::Fmod(MovementBobPhase + PhaseStep * FMath::Max(WeaponFrequency, 0.01f), 2.0f * PI);
         CameraBobPhase = FMath::Fmod(CameraBobPhase + PhaseStep * FMath::Max(CameraFrequency, 0.01f), 2.0f * PI);
+
+        // 발걸음 소리: 걷기/달리기 빠르기(초당 횟수)를 걷기↔달리기 전환에 맞춰 부드럽게 섞고, 느리게 움직이면 그만큼 느리게
+        const float StepsPerSecond = FMath::Lerp(WalkStepsPerSecond, SprintStepsPerSecond, SprintBobBlend) * FMath::Clamp(SpeedRatio, 0.5f, 1.0f);
+        FootstepProgress += DeltaTime * FMath::Max(StepsPerSecond, 0.1f);
+        if (FootstepProgress >= 1.0f)
+        {
+            FootstepProgress -= 1.0f;
+            PlayFootstep(bSprint);
+        }
     }
 
     const FVector WeaponAmplitude = FMath::Lerp(

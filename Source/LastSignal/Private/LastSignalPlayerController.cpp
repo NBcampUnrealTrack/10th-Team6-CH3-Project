@@ -22,6 +22,28 @@
 #include "Sound/SoundBase.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Blueprint/WidgetTree.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "AudioDevice.h"
+#include "Sound/SoundWave.h"
+
+namespace
+{
+	// ESC 전용: 포커스와 상관없이 모든 키 입력을 먼저 봄 (인트로 중엔 UI 전용 입력이라 게임 입력이 안 들어오기 때문)
+	class FIntroSkipInputProcessor : public IInputProcessor
+	{
+	public:
+		TFunction<bool()> OnEscape; // true면 ESC를 여기서 먹음 (다른 위젯에 안 넘어감)
+		virtual void Tick(const float DeltaTime, FSlateApplication &SlateApp, TSharedRef<ICursor> Cursor) override {}
+		virtual bool HandleKeyDownEvent(FSlateApplication &SlateApp, const FKeyEvent &InKeyEvent) override
+		{
+			if (InKeyEvent.GetKey() == EKeys::Escape && !InKeyEvent.IsRepeat() && OnEscape)
+				return OnEscape();
+			return false;
+		}
+	};
+}
 
 ALastSignalPlayerController::ALastSignalPlayerController()
 {
@@ -31,6 +53,20 @@ ALastSignalPlayerController::ALastSignalPlayerController()
 void ALastSignalPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// ESC: 인트로 중엔 두 번 눌러 건너뛰기, 게임 중엔 일시정지 (메인메뉴는 제외)
+	if (IsLocalController() && FSlateApplication::IsInitialized() && UGameplayStatics::GetCurrentLevelName(this) != TEXT("L_MainMenu"))
+	{
+		TSharedRef<FIntroSkipInputProcessor> Processor = MakeShared<FIntroSkipInputProcessor>();
+		TWeakObjectPtr<ALastSignalPlayerController> WeakThis(this);
+		Processor->OnEscape = [WeakThis]()
+		{
+			ALastSignalPlayerController *Controller = WeakThis.Get();
+			return Controller && Controller->HandleEscapeKey();
+		};
+		IntroSkipInput = Processor;
+		FSlateApplication::Get().RegisterInputPreProcessor(Processor);
+	}
 
 	// 로컬 플레이어만 자기 화면에 HUD를 그린다 (스플릿스크린/멀티플레이 대비)
 	if (IsLocalController() && HUDWidgetClass)
@@ -122,6 +158,11 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 	}
 
 	// 슬라이드쇼/페이드인 중엔 시계, 체력 숨김 (Hidden으로 하면 위젯 Tick이 멈춰서 투명도로)
+	if (bIntroSkipRequested)
+	{
+		bIntroSkipRequested = false;
+		SkipIntro();
+	}
 	const bool bSlideshowOnScreen = IsStorySlideshowOnScreen();
 	for (UWidget *CodeHudWidget : {WatchWidget.Get(), HealthWidget.Get(), SkillWidget.Get()})
 	{
@@ -143,7 +184,6 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 	}
 	bStorySlideshowWasOnScreen = bSlideshowOnScreen;
 
-	UpdateFootsteps(DeltaTime);
 }
 
 void ALastSignalPlayerController::ApplyHudScale()
@@ -171,9 +211,12 @@ void ALastSignalPlayerController::ApplyHudScale()
 
 	// WBP_LastSignalHUD 안의 요소(탄약 숫자, 목표 문구 등)는 하나씩, 각자 붙은 모서리 기준으로
 	// 화면 가운데(크로스헤어, 히트마커)와 화면 전체를 덮는 것(아드레날린 효과)은 그대로
+	// 요소마다 자기 모서리 기준으로만 줄이면 같은 모서리에 쌓인 요소들(총 그림, 탄약, 스킬)끼리 간격이 틀어짐
+	// → 줄인 다음, 화면 모서리 기준으로 줄인 것과 같은 자리로 옮겨 줌 (위치도 같은 비율로)
 	UCanvasPanel *Root = HUDWidgetInstance ? Cast<UCanvasPanel>(HUDWidgetInstance->GetRootWidget()) : nullptr;
 	if (!Root)
 		return;
+	HUDWidgetInstance->ForceLayoutPrepass(); // 자동 크기 요소의 실제 크기를 알기 위해
 	for (UWidget *Child : Root->GetAllChildren())
 	{
 		const UCanvasPanelSlot *ChildSlot = Cast<UCanvasPanelSlot>(Child->Slot);
@@ -182,36 +225,12 @@ void ALastSignalPlayerController::ApplyHudScale()
 		const FAnchors Anchors = ChildSlot->GetAnchors();
 		if (Anchors.IsStretchedHorizontal() || Anchors.IsStretchedVertical() || Anchors.Minimum.Equals(FVector2D(0.5f, 0.5f)))
 			continue;
+		const FVector2D Size = ChildSlot->GetAutoSize() ? Child->GetDesiredSize() : ChildSlot->GetSize();
+		// 기준점(요소의 모서리 쪽 점)이 화면 앵커에서 떨어진 거리
+		const FVector2D PivotFromAnchor = ChildSlot->GetPosition() + (Anchors.Minimum - ChildSlot->GetAlignment()) * Size;
 		Child->SetRenderTransformPivot(Anchors.Minimum);
 		Child->SetRenderScale(Scale);
-	}
-}
-
-void ALastSignalPlayerController::UpdateFootsteps(float DeltaTime)
-{
-	const ACharacter *PlayerCharacter = Cast<ACharacter>(GetPawn());
-	const UCharacterMovementComponent *Movement = PlayerCharacter ? PlayerCharacter->GetCharacterMovement() : nullptr;
-	const float Speed = Movement ? Movement->Velocity.Size2D() : 0.0f;
-	if (!Movement || !Movement->IsMovingOnGround() || Speed < 50.0f)
-	{
-		FootstepDistance = 120.0f; // 멈췄다 다시 걸으면 첫 발이 금방 나오게
-		return;
-	}
-
-	// 걸음 폭: 걷기(600) 약 2.2m, 달리기(900) 약 2.6m
-	const float Stride = 150.0f + Speed * 0.12f;
-	FootstepDistance += Speed * DeltaTime;
-	if (FootstepDistance < Stride)
-		return;
-	FootstepDistance -= Stride;
-
-	// 콘크리트 부츠 소리 (큐 안에 여러 버전이 있어 매번 조금씩 다르게 남). 달리면 달리기 소리
-	const bool bRunning = Speed > 750.0f;
-	if (USoundBase *Step = LoadObject<USoundBase>(nullptr, bRunning
-		? TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Run_8_Cue.Footstep_Concrete_Boots_Run_8_Cue")
-		: TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Jog_8_Cue.Footstep_Concrete_Boots_Jog_8_Cue")))
-	{
-		UGameplayStatics::PlaySound2D(this, Step, 0.35f); // 내 발소리라 위치 없이 작게
+		Child->SetRenderTranslation(PivotFromAnchor * (HudScale - 1.0f));
 	}
 }
 
@@ -237,16 +256,116 @@ bool ALastSignalPlayerController::IsInCutscene() const
 	return IsStorySlideshowOnScreen() || GetWorldTimerManager().IsTimerActive(IntroFadeTimerHandle);
 }
 
-bool ALastSignalPlayerController::IsStorySlideshowOnScreen() const
+UUserWidget *ALastSignalPlayerController::FindStorySlideshow() const
 {
 	// 레벨 BP/게임모드 BP가 만든 위젯이라 C++에서 클래스를 모름 → 경로로 찾음 (아직 안 불러와졌으면 = 화면에 없음)
 	const TSubclassOf<UUserWidget> SlideshowClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(TEXT("/Game/UI/HUD/WBP_StorySlideshow.WBP_StorySlideshow_C"))).Get();
 	if (!SlideshowClass)
-		return false;
+		return nullptr;
 
 	TArray<UUserWidget *> Slideshows;
 	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(const_cast<ALastSignalPlayerController *>(this), Slideshows, SlideshowClass, /*TopLevelOnly = 화면에 붙은 것만*/ true);
-	return Slideshows.Num() > 0;
+	return Slideshows.Num() > 0 ? Slideshows[0] : nullptr;
+}
+
+// ===================== 인트로 건너뛰기 (ESC 두 번) =====================
+
+
+bool ALastSignalPlayerController::HandleEscapeKey()
+{
+	if (!IsStorySlideshowOnScreen())
+	{
+		// 게임 중 ESC = 일시정지 (P와 같음). 일시정지 화면이 떠 있으면 그 화면이 ESC로 닫으니 여기선 안 건드림
+		// 게임오버/크레딧/무기 선택처럼 마우스가 보이는 화면, 인트로 뒤 페이드인 중에도 안 건드림
+		if (GetWorld()->IsPaused() || bShowMouseCursor || GetWorldTimerManager().IsTimerActive(IntroFadeTimerHandle))
+			return false;
+		TogglePauseMenu();
+		return true; // 먹어야 방금 뜬 일시정지 화면이 같은 ESC를 받아 바로 닫히지 않음
+	}
+
+	const double Now = FPlatformTime::Seconds();
+	if (Now - LastIntroEscapeSeconds < 2.0)
+	{
+		bIntroSkipRequested = true; // 실제 건너뛰기는 다음 PlayerTick에서
+		return true;
+	}
+	LastIntroEscapeSeconds = Now;
+
+	// 오른쪽 아래 작은 안내 "ESC 한 번 더 누르면 건너뛰기" (2초 뒤 사라짐)
+	if (!SkipHintWidget)
+	{
+		SkipHintWidget = CreateWidget<UIntroSkipHintWidget>(this, UIntroSkipHintWidget::StaticClass());
+		if (SkipHintWidget && SkipHintWidget->WidgetTree)
+		{
+			UCanvasPanel *HintRoot = SkipHintWidget->WidgetTree->ConstructWidget<UCanvasPanel>();
+			SkipHintWidget->WidgetTree->RootWidget = HintRoot;
+			UTextBlock *Hint = SkipHintWidget->WidgetTree->ConstructWidget<UTextBlock>();
+			Hint->SetText(FText::FromString(TEXT("ESC 한 번 더 누르면 건너뛰기")));
+			FSlateFontInfo Font = Hint->GetFont();
+			if (UFont *Pretendard = LoadObject<UFont>(nullptr, TEXT("/Game/UI/Fonts/Pretendard_Bold_Font.Pretendard_Bold_Font")))
+			{
+				Font.FontObject = Pretendard;
+				Font.TypefaceFontName = NAME_None;
+			}
+			Font.Size = 14;
+			Hint->SetFont(Font);
+			Hint->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.75f)));
+			UCanvasPanelSlot *HintSlot = HintRoot->AddChildToCanvas(Hint);
+			HintSlot->SetAnchors(FAnchors(1.0f, 1.0f));
+			HintSlot->SetAlignment(FVector2D(1.0f, 1.0f));
+			HintSlot->SetPosition(FVector2D(-40.0f, -36.0f));
+			HintSlot->SetAutoSize(true);
+			SkipHintWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
+	if (SkipHintWidget && !SkipHintWidget->IsInViewport())
+		SkipHintWidget->AddToViewport(60); // 슬라이드쇼 위
+	GetWorldTimerManager().SetTimer(SkipHintTimerHandle, this, &ALastSignalPlayerController::HideSkipHint, 2.0f, false);
+	return true;
+}
+
+void ALastSignalPlayerController::HideSkipHint()
+{
+	if (SkipHintWidget)
+		SkipHintWidget->RemoveFromParent();
+}
+
+void ALastSignalPlayerController::SkipIntro()
+{
+	HideSkipHint();
+	UUserWidget *Slideshow = FindStorySlideshow();
+	if (!Slideshow)
+		return;
+
+	// 1) 지금 나오는 나레이션 끄기 (슬라이드쇼가 PlaySound2D로 틀어서 핸들이 없음 → 나레이션 목록의 소리를 전부 정지)
+	if (const FArrayProperty *NarrationsProperty = FindFProperty<FArrayProperty>(Slideshow->GetClass(), TEXT("SlideNarrations")))
+	{
+		const FObjectPropertyBase *Inner = CastField<FObjectPropertyBase>(NarrationsProperty->Inner);
+		FScriptArrayHelper Narrations(NarrationsProperty, NarrationsProperty->ContainerPtrToValuePtr<void>(Slideshow));
+		FAudioDevice *AudioDevice = GetWorld()->GetAudioDeviceRaw();
+		for (int32 Index = 0; Inner && AudioDevice && Index < Narrations.Num(); ++Index)
+		{
+			if (USoundWave *Narration = Cast<USoundWave>(Inner->GetObjectPropertyValue(Narrations.GetRawPtr(Index))))
+				AudioDevice->StopSoundsUsingResource(Narration);
+		}
+	}
+
+	// 2) 다음 슬라이드로 넘어가는 타이머 정지 (안 하면 떼어 낸 위젯이 다음 나레이션을 또 틂)
+	GetWorldTimerManager().ClearAllTimersForObject(Slideshow);
+
+	// 3) 슬라이드쇼를 떼어 냄 → 다음 PlayerTick이 사라진 걸 보고 원래 인트로 끝과 똑같이 페이드인 + 입력/마우스/HUD 복구 + 게임 시작
+	//    (BP의 "끝났다" 신호를 코드로 억지로 보내면 크래시 나서, 정리는 여기서 직접 함)
+	Slideshow->RemoveFromParent();
+	SetInputMode(FInputModeGameOnly());
+	bShowMouseCursor = false;
+}
+
+void ALastSignalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (IntroSkipInput.IsValid() && FSlateApplication::IsInitialized())
+		FSlateApplication::Get().UnregisterInputPreProcessor(IntroSkipInput);
+	IntroSkipInput.Reset();
+	Super::EndPlay(EndPlayReason);
 }
 
 void ALastSignalPlayerController::TryTriggerSpecialAttack()

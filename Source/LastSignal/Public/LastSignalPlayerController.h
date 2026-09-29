@@ -5,12 +5,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "LastSignalPlayerController.generated.h"
 
 class ULastSignalHUDWidget;
 class ULastSignalPlayerHUDComponent;
-class UUserWidget;
 class UWidget;
+
+// 인트로 "ESC 한 번 더 누르면 건너뛰기" 안내용 빈 위젯 (UUserWidget은 추상 클래스라 그대로는 못 만듦, 내용은 컨트롤러가 코드로 채움)
+UCLASS()
+class LASTSIGNAL_API UIntroSkipHintWidget : public UUserWidget
+{
+	GENERATED_BODY()
+};
 
 UCLASS()
 class LASTSIGNAL_API ALastSignalPlayerController : public APlayerController
@@ -52,15 +59,25 @@ protected:
 	// 오른쪽 아래 스페셜 스킬 게이지 (슬라이드쇼 중엔 숨김)
 	TWeakObjectPtr<UWidget> SkillWidget;
 
-	// 발걸음 소리: 땅에서 움직인 거리가 한 걸음 폭을 넘을 때마다 한 번
-	float FootstepDistance = 0.0f;
-	void UpdateFootsteps(float DeltaTime);
-
 	// HUD 전체 크기 조절 (각 요소를 자기가 붙은 화면 모서리 기준으로 줄임 → 모서리 여백 비율도 같이 줄어듦)
 	void ApplyHudScale();
 
 	// 인트로/엔딩 슬라이드쇼(WBP_StorySlideshow)가 화면에 떠 있는지
-	bool IsStorySlideshowOnScreen() const;
+	bool IsStorySlideshowOnScreen() const { return FindStorySlideshow() != nullptr; }
+	UUserWidget *FindStorySlideshow() const;
+
+	// 인트로 건너뛰기: ESC 한 번 → 안내 문구, 2초 안에 한 번 더 → 건너뜀
+	// (인트로 중엔 UI 전용 입력이라 컨트롤러 입력이 안 들어와서 Slate 입력을 직접 가로챔)
+	TSharedPtr<class IInputProcessor> IntroSkipInput;
+	double LastIntroEscapeSeconds = -10.0;
+	bool bIntroSkipRequested = false; // 키 입력 처리 중엔 위젯을 건드리지 않고 다음 프레임(PlayerTick)에 건너뜀
+	FTimerHandle SkipHintTimerHandle;
+	UPROPERTY()
+	TObjectPtr<UUserWidget> SkipHintWidget;
+	bool HandleEscapeKey(); // 인트로 중이면 건너뛰기, 게임 중이면 일시정지. 처리했으면 true(키를 먹음)
+	void SkipIntro();
+	void HideSkipHint();
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 지난 프레임에 슬라이드쇼가 떠 있었는지 → 사라지는 순간(인트로 끝) 페이드인 시작
 	bool bStorySlideshowWasOnScreen = false;

@@ -195,6 +195,19 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
 
     // 기본 걷기와 달리기의 흔들림은 실제 지상 이동 속도로 조절한다.
     void UpdateMovementBob(float DeltaTime);
+    void PlayFootstep(bool bSprinting);
+
+    // 발걸음 소리 빠르기 (초당 몇 번). BP_PlayerCharacter의 Class Defaults에서 바로 조절 가능 (빌드 필요 없음)
+    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Walk Steps Per Second (걷기 초당 발소리)"))
+    float WalkStepsPerSecond = 3.4f;
+
+    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Sprint Steps Per Second (달리기 초당 발소리)"))
+    float SprintStepsPerSecond = 3.6f;
+
+    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Footstep Volume (발소리 볼륨)"))
+    float FootstepVolume = 0.35f;
+
+    float FootstepProgress = 0.0f; // 0 → 1이 되면 한 걸음
     virtual void OnJumped_Implementation() override;
     virtual void Landed(const FHitResult &Hit) override;
 
