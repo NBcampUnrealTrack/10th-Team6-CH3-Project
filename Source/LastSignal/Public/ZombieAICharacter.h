@@ -86,8 +86,16 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stat")
     bool bIsDead = false;
 
-    // 살아 있는 동안 가끔 신음 소리 (몇 초마다 랜덤, 가까울수록 크게)
+    // 좀비 목소리: 평소엔 신음, 쫓아올 땐 추격 소리, 공격/피격/사망 소리 (거리 감쇠 + 동시에 우는 좀비 수 제한)
     float SecondsUntilNextGroan = 0.0f;
+    float SecondsSinceLastPain = 10.0f;
+    float VoicePitch = 0.0f; // 좀비마다 다른 목소리 높이 (처음 울 때 정함)
+
+    UPROPERTY(Transient)
+    TObjectPtr<class UAudioComponent> CurrentVoice; // 지금 내고 있는 소리 (평소/추격 소리는 이게 끝나야 다음 걸 냄)
+
+    // bInterrupt: 공격/피격/사망처럼 바로 내야 하는 소리면 하던 소리를 끊고 냄
+    void PlayVoice(class USoundBase *Sound, float Volume, bool bInterrupt);
 
     UPROPERTY(Transient)
     TObjectPtr<class USoundAttenuation> GroanAttenuation;
