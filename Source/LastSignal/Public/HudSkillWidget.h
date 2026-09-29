@@ -25,6 +25,9 @@ public:
     // 배너가 HUD 최상위 캔버스에 바로 있지 않으면 false (원래 UI 그대로 둠)
     bool TakeOverFromHUD(UUserWidget *HUDWidget);
 
+    // 배너가 붙어 있는 화면 모서리 (HUD 전체 크기 조절 때 이 점을 기준으로 줄임)
+    FVector2D GetScreenAnchor() const { return BannerLayout.Anchors.Minimum; }
+
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;

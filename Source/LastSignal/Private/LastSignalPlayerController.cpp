@@ -17,6 +17,11 @@
 #include "Components/TextBlock.h"
 #include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Sound/SoundBase.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 
 ALastSignalPlayerController::ALastSignalPlayerController()
 {
@@ -90,6 +95,8 @@ void ALastSignalPlayerController::BeginPlay()
 				CrosshairWidget = Crosshair;
 			}
 
+			ApplyHudScale();
+
 			// 시작 목표 문구: GameMode의 레벨별 목록에서 현재 레벨 것을 찾아 표시
 			// (GameMode BeginPlay에서 하면 위젯 바인딩 전이라 방송을 놓침 → 위젯 바인딩 직후인 여기서 호출)
 			if (ALastSignalGameMode *GameMode = GetWorld()->GetAuthGameMode<ALastSignalGameMode>())
@@ -135,6 +142,77 @@ void ALastSignalPlayerController::PlayerTick(float DeltaTime)
 		GetWorldTimerManager().SetTimer(IntroFadeTimerHandle, this, &ALastSignalPlayerController::FinishIntroFade, FadeSeconds, false);
 	}
 	bStorySlideshowWasOnScreen = bSlideshowOnScreen;
+
+	UpdateFootsteps(DeltaTime);
+}
+
+void ALastSignalPlayerController::ApplyHudScale()
+{
+	// HUD가 크다는 피드백 → 전체를 같은 비율로 줄임 (이 숫자 하나로 조절, 1.0 = 원래 크기)
+	constexpr float HudScale = 0.8f;
+	const FVector2D Scale(HudScale);
+
+	// 코드로 만든 위젯은 화면 전체 크기라 위젯째로, 붙어 있는 모서리를 기준점으로 줄임
+	if (UWidget *Watch = WatchWidget.Get())
+	{
+		Watch->SetRenderTransformPivot(FVector2D(1.0f, 0.0f)); // 오른쪽 위
+		Watch->SetRenderScale(Scale);
+	}
+	if (UWidget *Health = HealthWidget.Get())
+	{
+		Health->SetRenderTransformPivot(FVector2D(0.0f, 1.0f)); // 왼쪽 아래
+		Health->SetRenderScale(Scale);
+	}
+	if (UHudSkillWidget *Skill = Cast<UHudSkillWidget>(SkillWidget.Get()))
+	{
+		Skill->SetRenderTransformPivot(Skill->GetScreenAnchor());
+		Skill->SetRenderScale(Scale);
+	}
+
+	// WBP_LastSignalHUD 안의 요소(탄약 숫자, 목표 문구 등)는 하나씩, 각자 붙은 모서리 기준으로
+	// 화면 가운데(크로스헤어, 히트마커)와 화면 전체를 덮는 것(아드레날린 효과)은 그대로
+	UCanvasPanel *Root = HUDWidgetInstance ? Cast<UCanvasPanel>(HUDWidgetInstance->GetRootWidget()) : nullptr;
+	if (!Root)
+		return;
+	for (UWidget *Child : Root->GetAllChildren())
+	{
+		const UCanvasPanelSlot *ChildSlot = Cast<UCanvasPanelSlot>(Child->Slot);
+		if (!ChildSlot)
+			continue;
+		const FAnchors Anchors = ChildSlot->GetAnchors();
+		if (Anchors.IsStretchedHorizontal() || Anchors.IsStretchedVertical() || Anchors.Minimum.Equals(FVector2D(0.5f, 0.5f)))
+			continue;
+		Child->SetRenderTransformPivot(Anchors.Minimum);
+		Child->SetRenderScale(Scale);
+	}
+}
+
+void ALastSignalPlayerController::UpdateFootsteps(float DeltaTime)
+{
+	const ACharacter *PlayerCharacter = Cast<ACharacter>(GetPawn());
+	const UCharacterMovementComponent *Movement = PlayerCharacter ? PlayerCharacter->GetCharacterMovement() : nullptr;
+	const float Speed = Movement ? Movement->Velocity.Size2D() : 0.0f;
+	if (!Movement || !Movement->IsMovingOnGround() || Speed < 50.0f)
+	{
+		FootstepDistance = 120.0f; // 멈췄다 다시 걸으면 첫 발이 금방 나오게
+		return;
+	}
+
+	// 걸음 폭: 걷기(600) 약 2.2m, 달리기(900) 약 2.6m
+	const float Stride = 150.0f + Speed * 0.12f;
+	FootstepDistance += Speed * DeltaTime;
+	if (FootstepDistance < Stride)
+		return;
+	FootstepDistance -= Stride;
+
+	// 콘크리트 부츠 소리 (큐 안에 여러 버전이 있어 매번 조금씩 다르게 남). 달리면 달리기 소리
+	const bool bRunning = Speed > 750.0f;
+	if (USoundBase *Step = LoadObject<USoundBase>(nullptr, bRunning
+		? TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Run_8_Cue.Footstep_Concrete_Boots_Run_8_Cue")
+		: TEXT("/Game/Essential_Foosteps_SK/CUE/Concrete/Footstep_Concrete_Boots_Jog_8_Cue.Footstep_Concrete_Boots_Jog_8_Cue")))
+	{
+		UGameplayStatics::PlaySound2D(this, Step, 0.35f); // 내 발소리라 위치 없이 작게
+	}
 }
 
 void ALastSignalPlayerController::FinishIntroFade()

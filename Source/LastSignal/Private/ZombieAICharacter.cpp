@@ -4,6 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
 #include "LastSignalGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
@@ -214,6 +216,35 @@ void AZombieAICharacter::OnAttackMontageEnded(UAnimMontage *Montage, bool bInter
 void AZombieAICharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    // 좀비 신음 소리: 살아 있고 화면에 나와 있는(풀에서 꺼낸) 좀비만, 5~12초마다 3가지 중 하나
+    if (bIsDead || IsHidden())
+        return;
+    SecondsUntilNextGroan -= DeltaTime;
+    if (SecondsUntilNextGroan > 0.0f)
+        return;
+    SecondsUntilNextGroan = FMath::FRandRange(5.0f, 12.0f);
+
+    static const TCHAR *GroanPaths[] = {
+        TEXT("/Game/FreeGameSoundsVol1/SFX/Voice_Idle_Groan_Low/Voice_Idle_Groan_Low_01_Cue.Voice_Idle_Groan_Low_01_Cue"),
+        TEXT("/Game/FreeGameSoundsVol1/SFX/Voice_Idle_Groan_Medium/Voice_Idle_Groan_Medium_01_Cue.Voice_Idle_Groan_Medium_01_Cue"),
+        TEXT("/Game/FreeGameSoundsVol1/SFX/Voice_Idle_Groan_High/Voice_Idle_Groan_High_01_Cue.Voice_Idle_Groan_High_01_Cue"),
+    };
+    USoundBase *Groan = LoadObject<USoundBase>(nullptr, GroanPaths[FMath::RandRange(0, 2)]);
+    if (!Groan)
+        return;
+
+    // 거리 감쇠: 4m까지는 그대로, 25m에서 안 들림 (감쇠 없으면 맵 어디서든 똑같이 들림)
+    if (!GroanAttenuation)
+    {
+        GroanAttenuation = NewObject<USoundAttenuation>(this);
+        GroanAttenuation->Attenuation.bAttenuate = true;
+        GroanAttenuation->Attenuation.bSpatialize = true;
+        GroanAttenuation->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
+        GroanAttenuation->Attenuation.AttenuationShapeExtents = FVector(400.0f, 0.0f, 0.0f);
+        GroanAttenuation->Attenuation.FalloffDistance = 2100.0f;
+    }
+    UGameplayStatics::PlaySoundAtLocation(this, Groan, GetActorLocation(), 0.7f, FMath::FRandRange(0.85f, 1.1f), 0.0f, GroanAttenuation);
 }
 
 void AZombieAICharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)

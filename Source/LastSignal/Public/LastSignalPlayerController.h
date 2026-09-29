@@ -52,6 +52,13 @@ protected:
 	// 오른쪽 아래 스페셜 스킬 게이지 (슬라이드쇼 중엔 숨김)
 	TWeakObjectPtr<UWidget> SkillWidget;
 
+	// 발걸음 소리: 땅에서 움직인 거리가 한 걸음 폭을 넘을 때마다 한 번
+	float FootstepDistance = 0.0f;
+	void UpdateFootsteps(float DeltaTime);
+
+	// HUD 전체 크기 조절 (각 요소를 자기가 붙은 화면 모서리 기준으로 줄임 → 모서리 여백 비율도 같이 줄어듦)
+	void ApplyHudScale();
+
 	// 인트로/엔딩 슬라이드쇼(WBP_StorySlideshow)가 화면에 떠 있는지
 	bool IsStorySlideshowOnScreen() const;
 

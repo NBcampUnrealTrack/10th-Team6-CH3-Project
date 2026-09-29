@@ -83,14 +83,12 @@ void ALastSignalGameMode::BeginPlay()
 
     ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>();
 
-    // 레벨별 배경음악: 인트로(스폰) 작게 → 지하철~폐건물은 음악 없음 → 옥상 (메인메뉴는 메인메뉴 위젯이 직접 틂)
+    // 레벨별 배경음악: 인트로(스폰) 작게 → 지하철~옥상 도착까지 음악 없음 (옥상 BGM은 StartEscapeTimer, 메인메뉴는 메인메뉴 위젯이 직접 틂)
     if (CurrentGameInstance)
     {
         const FString LevelName = UGameplayStatics::GetCurrentLevelName(this);
         if (LevelName == TEXT("L_SafeZone_Spawn"))
             CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Intro.BGM_Intro")), 2.0f, 0.3f); // 나레이션이 잘 들리게 작게
-        else if (LevelName == TEXT("L_Rooftop"))
-            CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Rooftop.BGM_Rooftop")), 3.0f, 0.4f);
         else if (LevelName != TEXT("L_MainMenu"))
             CurrentGameInstance->StopMusic(3.0f);
     }
@@ -217,6 +215,10 @@ void ALastSignalGameMode::StartCountdown(float DurationSeconds) // 15분 카운�
 
 void ALastSignalGameMode::StartEscapeTimer(float DurationSeconds) // 3분 탈출 타이머 시작 (3분도 임의값입니다)
 {
+    // 옥상 BGM은 탈출 3분이 시작되는 순간부터 (옥상 들어올 땐 음악 없음)
+    if (ULastSignalGameInstance *CurrentGameInstance = GetGameInstance<ULastSignalGameInstance>())
+        CurrentGameInstance->PlayMusic(ULastSignalGameInstance::LoadLoopingSound(TEXT("/Game/Sounds/Music/BGM_Rooftop.BGM_Rooftop")), 2.0f, 0.55f);
+
     if (ALastSignalGameState *CurrentGameState = GetGameState<ALastSignalGameState>())
     {
         CurrentGameState->TimerMode = ETimerMode::Escape;

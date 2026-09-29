@@ -86,6 +86,12 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stat")
     bool bIsDead = false;
 
+    // 살아 있는 동안 가끔 신음 소리 (몇 초마다 랜덤, 가까울수록 크게)
+    float SecondsUntilNextGroan = 0.0f;
+
+    UPROPERTY(Transient)
+    TObjectPtr<class USoundAttenuation> GroanAttenuation;
+
     // --- 전투 설정 변수 ---
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     class UAnimMontage *AttackMontage;

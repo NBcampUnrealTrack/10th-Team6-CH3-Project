@@ -33,7 +33,7 @@ class LASTSIGNAL_API AAmmoSupplyBox : public AActor, public IInteractableTarget
     TObjectPtr<UBoxComponent> TriggerBox;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoBox|Settings")
-    float InteractionDuration = 5.0f;
+    float InteractionDuration = 1.5f; // 보급 시간 (철컥 소리 0.8초 기준, 5초는 너무 길어서 줄임)
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoBox|Settings")
     int32 MaxCharges = 1;
