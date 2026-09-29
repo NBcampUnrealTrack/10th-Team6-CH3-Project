@@ -17,6 +17,12 @@
 #include "PlayerCharacter.h"
 #include "ZombieAICharacter.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Particles/ParticleSystem.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
  
 
 APrimaryWeapon::APrimaryWeapon()
@@ -104,6 +110,9 @@ void APrimaryWeapon::BeginPlay()
     Combat->OnShot.AddDynamic(
         this, &APrimaryWeapon::HandleShot);
 
+    Combat->OnImpact.AddDynamic(
+        this, &APrimaryWeapon::HandleImpact);
+
     Combat->OnReloadChanged.AddDynamic(
         this, &APrimaryWeapon::HandleReload);
 
@@ -122,6 +131,9 @@ void APrimaryWeapon::EndPlay(
 
     Combat->OnShot.RemoveDynamic(
         this, &APrimaryWeapon::HandleShot);
+
+    Combat->OnImpact.RemoveDynamic(
+        this, &APrimaryWeapon::HandleImpact);
 
     Combat->OnReloadChanged.RemoveDynamic(
         this, &APrimaryWeapon::HandleReload);
@@ -305,11 +317,6 @@ void APrimaryWeapon::HandleShot(
     bool bHit,
     const FHitResult &HitResult)
 {
-    UE_LOG(LogTemp, Log, TEXT("Shot fired. Hit=%s Actor=%s"),
-           bHit ? TEXT("true") : TEXT("false"),
-           *GetNameSafe(HitResult.GetActor())); // 테스트용: 맞았는지/뭘 맞았는지 바로 확인하려고 넣었어요 (꼭 확인 필요)
-    
-    
     PlayShotEffects(bHit, HitResult);
 
     // UI 추가: 좀비를 맞혔을 때만 히트마커를 요청한다 (bHit는 벽 등 아무거나 맞아도 true라서 대상 확인)
@@ -327,6 +334,71 @@ void APrimaryWeapon::HandleShot(
 }
 
 
+
+void APrimaryWeapon::HandleImpact(const FHitResult &HitResult)
+{
+    PlayImpactEffects(HitResult);
+}
+
+bool APrimaryWeapon::IsEnemyHit(const FHitResult &HitResult) const
+{
+    const AActor *HitActor = HitResult.GetActor();
+    return IsValid(HitActor) &&
+           (HitActor->IsA<AZombieAICharacter>() ||
+            (IsValid(HitActor->GetOwner()) && HitActor->GetOwner()->IsA<AZombieAICharacter>()));
+}
+
+void APrimaryWeapon::PlayImpactEffects_Implementation(const FHitResult &HitResult)
+{
+    if (!HitResult.bBlockingHit || !GetWorld() || GetNetMode() == NM_DedicatedServer)
+    {
+        return;
+    }
+
+    const FWeaponImpactEffects &Effects = IsEnemyHit(HitResult)
+                                             ? EnemyImpactEffects
+                                             : EnvironmentImpactEffects;
+
+    const FVector SurfaceNormal = HitResult.ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
+    const FVector Location = HitResult.ImpactPoint + SurfaceNormal * Effects.SurfaceOffset;
+    const FQuat SurfaceRotation = FRotationMatrix::MakeFromZ(SurfaceNormal).ToQuat();
+    const FRotator Rotation = (SurfaceRotation * Effects.RotationOffset.Quaternion()).Rotator();
+
+    // 에셋 미지정은 정상 상태다. 두 종류를 지정하면 나이아가라만 생성한다.
+    if (Effects.NiagaraEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            this, Effects.NiagaraEffect, Location, Rotation, Effects.Scale);
+    }
+    else if (Effects.ParticleEffect)
+    {
+        UGameplayStatics::SpawnEmitterAtLocation(
+            this, Effects.ParticleEffect, Location, Rotation, Effects.Scale);
+    }
+
+    // 연기는 순간 탄착 효과와 독립적으로 월드 위치에 생성한다.
+    if (Effects.SmokeNiagaraEffect || Effects.SmokeParticleEffect)
+    {
+        const FQuat SmokeBaseRotation = Effects.bAlignSmokeToSurface ? SurfaceRotation : FQuat::Identity;
+        const FRotator SmokeRotation = (SmokeBaseRotation * Effects.SmokeRotationOffset.Quaternion()).Rotator();
+        if (Effects.SmokeNiagaraEffect)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                this, Effects.SmokeNiagaraEffect, Location, SmokeRotation, Effects.SmokeScale);
+        }
+        else
+        {
+            UGameplayStatics::SpawnEmitterAtLocation(
+                this, Effects.SmokeParticleEffect, Location, SmokeRotation, Effects.SmokeScale);
+        }
+    }
+
+    if (Effects.Sound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this, Effects.Sound, HitResult.ImpactPoint, 1.0f, 1.0f, 0.0f, Effects.SoundAttenuation);
+    }
+}
 
 void APrimaryWeapon::HandleReload(bool bReloading)
 {

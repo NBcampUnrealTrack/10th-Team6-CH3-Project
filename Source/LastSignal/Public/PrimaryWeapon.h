@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "InputCoreTypes.h"
+#include "WeaponImpactEffects.h"
 #include "PrimaryWeapon.generated.h"
 
 
@@ -58,6 +59,10 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
     UFUNCTION(BlueprintPure, Category = "Weapon|Aim")
     bool IsAiming() const;
 
+    // 본체뿐 아니라 좀비 소유의 별도 피격 액터도 같은 기준으로 분류한다.
+    UFUNCTION(BlueprintPure, Category = "Weapon|Impact")
+    bool IsEnemyHit(const FHitResult &HitResult) const;
+
   protected:
     virtual void BeginPlay() override;
 
@@ -77,6 +82,14 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
     TSoftObjectPtr<UTexture2D> WeaponIcon;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Impact",
+              meta = (DisplayName = "환경 탄착"))
+    FWeaponImpactEffects EnvironmentImpactEffects;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Impact",
+              meta = (DisplayName = "적 탄착"))
+    FWeaponImpactEffects EnemyImpactEffects;
+
     // 기본 키는 생성자에서 지정한다.
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|Input")
     FKey FireKey;
@@ -87,6 +100,13 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
     // 소리·머즐 플래시·발사 애니메이션 연결 지점.
     UFUNCTION(BlueprintImplementableEvent, Category = "Weapon|Effects")
     void PlayShotEffects(bool bHit, const FHitResult &HitResult);
+
+    // 실제 명중마다 탄착 파티클·데칼·소리를 연결한다. 빗나간 경우 호출하지 않는다.
+    // 산탄총은 명중한 펠릿마다 호출하므로 머즐 플래시·발사음은 여기에 연결하지 않는다.
+    // 기본 구현은 클래스 기본값의 환경/적 탄착 설정을 재생한다.
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Effects")
+    void PlayImpactEffects(const FHitResult &HitResult);
+    virtual void PlayImpactEffects_Implementation(const FHitResult &HitResult);
 
     // true: 재장전 시작 / false: 완료 또는 취소.
     UFUNCTION(BlueprintImplementableEvent, Category = "Weapon|Effects")
@@ -108,6 +128,9 @@ class LASTSIGNAL_API APrimaryWeapon : public AActor
 
     UFUNCTION()
     void HandleShot(bool bHit, const FHitResult &HitResult);
+
+    UFUNCTION()
+    void HandleImpact(const FHitResult &HitResult);
 
     UFUNCTION()
     void HandleReload(bool bReloading);

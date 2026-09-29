@@ -48,6 +48,9 @@ public:
 
     void UpdateTimer(); // 1초마다 자동으로 반복 호출됨
 
+    // 지금 시계(스톱워치/카운트다운 + 값)를 GameInstance에 저장 → 다음 레벨이나 RETRY에서 이어짐 (탈출 타이머 중이면 저장 안 함)
+    void SaveTimerToGameInstance();
+
 
 protected:
 
