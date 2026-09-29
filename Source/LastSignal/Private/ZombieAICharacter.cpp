@@ -1,14 +1,13 @@
 #include "ZombieAICharacter.h"
 #include "Animation/AnimInstance.h"
+#include "BrainComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "LastSignalGameMode.h"
-#include "Kismet/GameplayStatics.h"
 #include "ZombieAIController.h"
-#include "Components/SphereComponent.h"
-#include "BrainComponent.h"
 // UI 추가
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
@@ -19,7 +18,7 @@ AZombieAICharacter::AZombieAICharacter()
     AIControllerClass = AZombieAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-     // 캡슐이 사격 트레이스(Visibility)를 막지 않게 해서 머리 히트박스/메시까지 도달하게 한다.
+    // 캡슐이 사격 트레이스(Visibility)를 막지 않게 해서 머리 히트박스/메시까지 도달하게 한다.
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 
     // 몸통 피격은 메시가 받는다.
@@ -39,7 +38,6 @@ AZombieAICharacter::AZombieAICharacter()
     HeadHitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     HeadHitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
     HeadHitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block); // 트레이스가 ECC_Visibility라서 이거 필수
-
 }
 
 void AZombieAICharacter::BeginPlay()
@@ -96,6 +94,12 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
     {
         bIsDead = true;
         bIsAttacking = false;
+
+        // 죽는 소리 재생 (액터가 정리돼도 소리는 끝까지 재생됨)
+        if (DeathSound)
+        {
+            UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+        }
 
         // 진행 중인 공격 몽타주를 즉시 중단 (블렌드 아웃 0초)
         if (UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance())
@@ -194,7 +198,6 @@ void AZombieAICharacter::OnAttackHitCheck()
 
     if (bHit && HitResult.GetActor())
     {
-
         UGameplayStatics::ApplyDamage(
             HitResult.GetActor(),
             AttackDamage,

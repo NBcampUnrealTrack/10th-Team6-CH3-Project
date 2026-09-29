@@ -103,7 +103,9 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
     bool bIsAttacking = false;
 
-    
+        // --- 사운드 ---
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+    class USoundBase *DeathSound;
 
   public:
     virtual void Tick(float DeltaTime) override;
