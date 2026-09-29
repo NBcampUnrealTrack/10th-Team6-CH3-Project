@@ -6,6 +6,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "EngineUtils.h"
+#include "ZombieAICharacter.h"
+#include "ZombieSpawnPool.h"
+#include "AIController.h"
+#include "BrainComponent.h"
 
 #include "LastSignalPlayerController.h"
 #include "LastSignalPlayerHUDComponent.h"
@@ -286,6 +290,9 @@ void ALastSignalGameMode::UpdateTimer() // 1초마다 실행되는 실제 갱신
 
 void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 실패 / 플레이어 사망 공용)
 {
+    if (ClearRealSeconds > 0.0) // 이미 탈출 성공(엔딩 중)이면 게임오버 없음
+        return;
+
     APlayerController *CurrentPlayerController = GetWorld()->GetFirstPlayerController(); // 위젯 만들고 입력모드 바꾸려면 PlayerController 필요 , PlayerController를 가져오는 것
     if (!CurrentPlayerController)
         return;
@@ -310,6 +317,32 @@ void ALastSignalGameMode::OnGameOver() // 게임오버 처리 (카운트다운 �
 void ALastSignalGameMode::OnEscapeSuccess() // 탈출 타이머 끝나면 클리어 함수 구현 (엔딩 연출은 나중에 결정)
 {
     ClearRealSeconds = FPlatformTime::Seconds(); // 플레이 시간은 여기서 끝 (시계는 UpdateTimer에서 이미 멈춤)
+
+    // 엔딩이 시작되면 게임은 끝난 것: 좀비 스폰·좀비 행동을 멈추고 숨김, 플레이어는 무적 + 조작 불가
+    // (안 하면 엔딩 슬라이드쇼 뒤에서 좀비가 계속 공격해 플레이어가 죽고 게임오버가 뜸)
+    for (TActorIterator<AZombieSpawnPool> It(GetWorld()); It; ++It)
+        GetWorldTimerManager().ClearAllTimersForObject(*It);
+    for (TActorIterator<AZombieAICharacter> It(GetWorld()); It; ++It)
+    {
+        AZombieAICharacter *Zombie = *It;
+        if (AAIController *ZombieController = Cast<AAIController>(Zombie->GetController()))
+        {
+            if (UBrainComponent *Brain = ZombieController->GetBrainComponent())
+                Brain->StopLogic(TEXT("Ending"));
+            ZombieController->StopMovement();
+        }
+        Zombie->SetActorHiddenInGame(true); // 숨긴 좀비는 소리도 안 냄
+        Zombie->SetActorEnableCollision(false);
+        Zombie->SetActorTickEnabled(false);
+    }
+    if (APlayerController *PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+    {
+        if (APawn *PlayerPawn = PlayerController->GetPawn())
+        {
+            PlayerPawn->SetCanBeDamaged(false);
+            PlayerPawn->DisableInput(PlayerController);
+        }
+    }
 
     // 옥상 레벨에서 나던 소리(헬기, 좀비 등)는 전부 서서히 끔 → 엔딩 나레이션이 잘 들리게
     // (나레이션은 아래 OnEndingStarted 이후에 새로 재생되니까 영향 없음. 음악/환경음은 액터 소속이 아니라 여기 안 걸림)

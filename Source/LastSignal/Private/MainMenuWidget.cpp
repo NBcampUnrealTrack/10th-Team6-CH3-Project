@@ -450,12 +450,12 @@ namespace
     };
 
     const FCreditMember TeamMembers[] = {
-        {TEXT("한누리"), TEXT("Team Lead · Git Sub Master · Game Systems · UI · Cinematics & Narration · Character")},
-        {TEXT("이영빈"), TEXT("Sub Lead · Weapons & Gunplay · Combat Animation · VFX")},
-        {TEXT("이승현"), TEXT("Git Master · Zombie AI · Environment Art · Level Design")},
-        {TEXT("이원창"), TEXT("Player Skills · Combat · Items · Audio")},
-        {TEXT("곽성은"), TEXT("Lead Level Design · Level Layout · Level Building · VFX · Character")},
-        {TEXT("신나린"), TEXT("HUD")},
+        {TEXT("한누리"), TEXT("Team Lead · Git Sub Master · Game Systems · UI · Cinematics & Narration · BGM · Character")},
+        {TEXT("이영빈"), TEXT("Sub Lead · Weapons & Gunplay · Combat Animation · Weapon VFX Lead")},
+        {TEXT("이승현"), TEXT("Git Master · Zombie AI · Environment Art · Level Design · VFX")},
+        {TEXT("이원창"), TEXT("Player Skills · Combat · Items · Zombie Spawn · Audio")},
+        {TEXT("곽성은"), TEXT("Lead Level Design · Level Building · VFX · Character")},
+        {TEXT("신나린"), TEXT("HUD · Kill Feed · Crosshair · Hit Marker · Skill UI · Weapon UI")},
     };
 
     const TCHAR *AssetLines[] = {
