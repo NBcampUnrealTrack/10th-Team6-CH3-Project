@@ -486,7 +486,7 @@ void APlayerCharacter::Landed(const FHitResult &Hit)
     }
 }
 
-// 보행은 반복 파형, 점프와 착지는 한 번 이동한 뒤 복귀하는 파형으로 합성한다.
+// 보행 파형에서 발을 디딘 순간에만 한 번 재생한다.
 void APlayerCharacter::PlayFootstep(bool bSprinting)
 {
     // 콘크리트 부츠 소리 (큐 안에 여러 버전이 있어 매번 조금씩 다르게 남). 달리면 달리기 소리, 내 발소리라 위치 없이 작게
@@ -559,17 +559,21 @@ void APlayerCharacter::UpdateMovementBob(float DeltaTime)
 
     if (bMovingOnGround)
     {
-        // 입력만 유지하고 벽에 막힌 상태에서는 주기가 진행되지 않는다.
-        const float PhaseStep = DeltaTime * 2.0f * PI * FMath::Clamp(SpeedRatio, 0.5f, 1.0f);
-        MovementBobPhase = FMath::Fmod(MovementBobPhase + PhaseStep * FMath::Max(WeaponFrequency, 0.01f), 2.0f * PI);
-        CameraBobPhase = FMath::Fmod(CameraBobPhase + PhaseStep * FMath::Max(CameraFrequency, 0.01f), 2.0f * PI);
+        // 실제 지상 속도에 비례해 진행한다. 정지/공중에서는 소리와 보행 주기가 모두 멈춘다.
+        // 최소 50% 속도 제한을 없애 느린 이동에도 발걸음이 앞서 나가지 않게 한다.
+        constexpr float FullCycle = 2.0f * PI;
+        const float PhaseStep = FMath::Max(DeltaTime, 0.0f) * FullCycle * SpeedRatio;
+        MovementBobPhase = FMath::Fmod(MovementBobPhase + PhaseStep * FMath::Max(WeaponFrequency, 0.01f), FullCycle);
 
-        // 발걸음 소리: 걷기/달리기 빠르기(초당 횟수)를 걷기↔달리기 전환에 맞춰 부드럽게 섞고, 느리게 움직이면 그만큼 느리게
-        const float StepsPerSecond = FMath::Lerp(WalkStepsPerSecond, SprintStepsPerSecond, SprintBobBlend) * FMath::Clamp(SpeedRatio, 0.5f, 1.0f);
-        FootstepProgress += DeltaTime * FMath::Max(StepsPerSecond, 0.1f);
-        if (FootstepProgress >= 1.0f)
+        const float NextCameraPhase = CameraBobPhase + PhaseStep * FMath::Max(CameraFrequency, 0.01f);
+        const float ContactPhase = FMath::Fmod(FMath::Clamp(FootstepContactPhase, 0.0f, 1.0f), 1.0f) * FullCycle;
+        const int32 PreviousContact = FMath::FloorToInt((CameraBobPhase - ContactPhase) / FullCycle);
+        const int32 NextContact = FMath::FloorToInt((NextCameraPhase - ContactPhase) / FullCycle);
+        CameraBobPhase = FMath::Fmod(NextCameraPhase, FullCycle);
+
+        // 프레임이 착지 시점을 지나갔는지 확인한다. 긴 프레임에도 밀린 발소리를 몰아서 재생하지 않는다.
+        if (NextContact > PreviousContact)
         {
-            FootstepProgress -= 1.0f;
             PlayFootstep(bSprint);
         }
     }

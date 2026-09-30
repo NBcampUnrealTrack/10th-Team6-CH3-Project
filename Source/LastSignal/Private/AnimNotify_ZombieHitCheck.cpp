@@ -13,6 +13,11 @@ void UAnimNotify_ZombieHitCheck::Notify(USkeletalMeshComponent *MeshComp, UAnimS
         return;
 
     AActor *OwnerActor = MeshComp->GetOwner();
+    if (const AZombieAICharacter *Zombie = Cast<AZombieAICharacter>(OwnerActor))
+    {
+        if (Zombie->GetIsDead())
+            return;
+    }
     UWorld *World = OwnerActor->GetWorld();
     if (!World)
         return;

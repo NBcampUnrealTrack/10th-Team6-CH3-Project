@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -60,6 +60,14 @@ class LASTSIGNAL_API AZombieAICharacter : public ACharacter
 
     UPROPERTY(EditAnywhere, Category = "AI")
     TMap<EZombieType, USkeletalMesh *> ZombieMeshes;
+
+    // 사망 애니메이션을 보여준 뒤 시체를 제거한다. 0으로 무한 유지되지 않게 최소값을 보장한다.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Death", meta = (ClampMin = "1.0", Units = "s"))
+    float CorpseLifeSpan = 8.0f;
+
+    // 0: always use the AnimBP death animation, 1: always use ragdoll when supported.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Death", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float RagdollDeathChance = 0.25f;
 
     // 헤드샷
     UPROPERTY(VisibleAnywhere, Category = "Combat")

@@ -17,6 +17,11 @@ class LASTSIGNAL_API AZombieAIController : public AAIController
   protected:
     virtual void BeginPlay() override;
     virtual void OnPossess(APawn *InPawn) override;
+    virtual void OnUnPossess() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    void InitializePlayerTarget();
+    FTimerHandle PlayerTargetTimer;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     class UBehaviorTree *BehaviorTreeAsset;

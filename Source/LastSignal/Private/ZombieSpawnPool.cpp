@@ -1,4 +1,5 @@
-﻿#include "ZombieSpawnPool.h"
+#include "ZombieSpawnPool.h"
+#include "ZombieAICharacter.h"
 #include "Components/BoxComponent.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
@@ -55,7 +56,7 @@ void AZombieSpawnPool::BeginPlay()
         // 게임 시작 시 이미 플레이어가 스폰 영역 안에 있는지 딜레이 검사
         FTimerHandle InitialCheckHandle;
         GetWorld()->GetTimerManager().SetTimer(
-            InitialCheckHandle, [this]()
+            InitialCheckHandle, FTimerDelegate::CreateWeakLambda(this, [this]()
             {
                 if (!IsValid(this) || !TriggerBox) return;
 
@@ -70,9 +71,15 @@ void AZombieSpawnPool::BeginPlay()
                         StartSpawningProcess(PlayerPawn);
                         break;
                     }
-                } },
+                } }),
             0.2f, false);
     }
+}
+
+void AZombieSpawnPool::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearAllTimersForObject(this);
+    Super::EndPlay(EndPlayReason);
 }
 
 void AZombieSpawnPool::LoadMapSpecificData()
@@ -299,7 +306,13 @@ void AZombieSpawnPool::SpawnZombieBatch(int32 Count)
 void AZombieSpawnPool::CleanupDeadZombies()
 {
     SpawnedZombies.RemoveAll([](AActor *Zombie)
-                             { return !IsValid(Zombie); });
+                             {
+                                 if (!IsValid(Zombie))
+                                     return true;
+                                 const AZombieAICharacter *Character = Cast<AZombieAICharacter>(Zombie);
+                                 // 시체는 자체 수명으로 정리하고, 스폰 상한에는 살아 있는 좀비만 센다.
+                                 return Character && Character->GetIsDead();
+                             });
 }
 
 FVector AZombieSpawnPool::GetRandomSpawnPoint() const

@@ -1,4 +1,4 @@
-#include "ZombieAICharacter.h"
+﻿#include "ZombieAICharacter.h"
 #include "Animation/AnimInstance.h"
 #include "BrainComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -86,7 +86,7 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
 
     CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
 
-    UE_LOG(LogTemp, Warning, TEXT("[Zombie] Took Damage: %f / Remaining HP: %f (%.1f%%)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[Zombie] Took Damage: %f / Remaining HP: %f (%.1f%%)"),
            ActualDamage, CurrentHP, GetHPRatio() * 100.0f);
 
     // 맞으면 아파하는 소리 (연사로 도배되지 않게 1초에 한 번, 이번 공격으로 죽으면 아래에서 죽는 소리)
@@ -137,7 +137,7 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
         }
         // 여기까지
 
-        UE_LOG(LogTemp, Error, TEXT("[Zombie] Dead!"));
+        UE_LOG(LogTemp, Verbose, TEXT("[Zombie] Dead!"));
 
         // 1. AI 동작 중단 및 빙의 해제
         if (AAIController *AICon = Cast<AAIController>(GetController()))
@@ -147,11 +147,35 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
                 Brain->StopLogic(TEXT("Dead")); // 진행 중인 BT 태스크 중단
             }
             AICon->StopMovement();
-            AICon->UnPossess();
+            // 단순 UnPossess는 컨트롤러를 월드에 남긴다. 엔진의 Pawn 정리 경로로 제거한다.
+            DetachFromControllerPendingDestroy();
         }
 
         // 2. 플레이어/다른 AI와의 충돌 제거 (시체 통과 가능 처리)
+        USkeletalMeshComponent *DeathMesh = GetMesh();
+        const float Chance = FMath::Clamp(RagdollDeathChance, 0.0f, 1.0f);
+        const bool bUseRagdoll = DeathMesh->GetPhysicsAsset() &&
+            (Chance >= 1.0f || (Chance > 0.0f && FMath::FRand() < Chance));
+        SetActorEnableCollision(bUseRagdoll);
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        DeathMesh->SetGenerateOverlapEvents(false);
+        if (bUseRagdoll)
+        {
+            // Keep world contacts, but corpses must not block players, AI or weapon traces.
+            DeathMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+            DeathMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+            DeathMesh->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+            DeathMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+            DeathMesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+            DeathMesh->bPauseAnims = true;
+            DeathMesh->SetSimulatePhysics(true);
+            DeathMesh->WakeAllRigidBodies();
+        }
+        else
+        {
+            // Leave animation ticking: GetIsDead drives the existing non-looping death state.
+            DeathMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        }
         HeadHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 시체 머리가 총알을 막는 문제 방지
 
         // 3. 이동 컴포넌트 비활성화
@@ -159,7 +183,12 @@ float AZombieAICharacter::TakeDamage(float DamageAmount, FDamageEvent const &Dam
         {
             Movement->StopMovementImmediately();
             Movement->DisableMovement();
+            Movement->SetComponentTickEnabled(false);
         }
+
+        // AnimBP의 사망 모션은 계속 재생하고, 캐릭터 Tick 및 시체의 무한 누적만 중단한다.
+        SetActorTickEnabled(false);
+        SetLifeSpan(FMath::Max(1.0f, CorpseLifeSpan));
     }
 
     return ActualDamage;

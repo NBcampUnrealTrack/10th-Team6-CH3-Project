@@ -197,17 +197,14 @@ class LASTSIGNAL_API APlayerCharacter : public ACharacter
     void UpdateMovementBob(float DeltaTime);
     void PlayFootstep(bool bSprinting);
 
-    // 발걸음 소리 빠르기 (초당 몇 번). BP_PlayerCharacter의 Class Defaults에서 바로 조절 가능 (빌드 필요 없음)
-    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Walk Steps Per Second (걷기 초당 발소리)"))
-    float WalkStepsPerSecond = 2.5f;
-
-    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Sprint Steps Per Second (달리기 초당 발소리)"))
-    float SprintStepsPerSecond = 4.1f;
+    // 발소리는 카메라 보행 주기를 공유한다. Sin 파형의 0.75 지점이 발을 디딜 때의 최저점이다.
+    UPROPERTY(EditAnywhere, Category = "Sound|Footsteps",
+              meta = (ClampMin = "0.0", ClampMax = "1.0", DisplayName = "Footstep Contact Phase (발소리 착지 시점)"))
+    float FootstepContactPhase = 0.75f;
 
     UPROPERTY(EditAnywhere, Category = "Sound|Footsteps", meta = (DisplayName = "Footstep Volume (발소리 볼륨)"))
     float FootstepVolume = 0.38f;
 
-    float FootstepProgress = 0.0f; // 0 → 1이 되면 한 걸음
     virtual void OnJumped_Implementation() override;
     virtual void Landed(const FHitResult &Hit) override;
 

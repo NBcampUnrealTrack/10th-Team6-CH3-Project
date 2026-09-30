@@ -34,18 +34,34 @@ void AZombieAIController::StartBehaviorTree()
             RunBehaviorTree(BehaviorTreeAsset);
             UE_LOG(LogTemp, Warning, TEXT("[Zombie] Behavior Tree started successfully!"));
 
-            FTimerHandle SetPlayerTimer;
-            GetWorldTimerManager().SetTimer(SetPlayerTimer, FTimerDelegate::CreateLambda([this, BlackboardComp]()
-                                                                                         {
-                APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
-                if (PlayerPawn && BlackboardComp)
-                {
-                    BlackboardComp->SetValueAsObject(FName("PlayerObj"), PlayerPawn);
-                    BlackboardComp->SetValueAsVector(FName("PlayerVector"), PlayerPawn->GetActorLocation());
-                    
-                    UE_LOG(LogTemp, Warning, TEXT("[Zombie] Successfully set PlayerObj: %s"), *PlayerPawn->GetName());
-                } }),
-                                            0.1f, false);
+            GetWorldTimerManager().SetTimer(
+                PlayerTargetTimer, this, &AZombieAIController::InitializePlayerTarget, 0.1f, false);
         }
     }
+}
+void AZombieAIController::InitializePlayerTarget()
+{
+    // 사망 직후나 다른 Pawn으로 바뀐 뒤에는 이전 참조를 사용하지 않는다.
+    if (!IsValid(GetPawn()))
+        return;
+
+    UBlackboardComponent *BlackboardComp = GetBlackboardComponent();
+    APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    if (BlackboardComp && IsValid(PlayerPawn))
+    {
+        BlackboardComp->SetValueAsObject(FName("PlayerObj"), PlayerPawn);
+        BlackboardComp->SetValueAsVector(FName("PlayerVector"), PlayerPawn->GetActorLocation());
+    }
+}
+
+void AZombieAIController::OnUnPossess()
+{
+    GetWorldTimerManager().ClearTimer(PlayerTargetTimer);
+    Super::OnUnPossess();
+}
+
+void AZombieAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(PlayerTargetTimer);
+    Super::EndPlay(EndPlayReason);
 }
